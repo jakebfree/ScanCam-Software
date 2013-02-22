@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
+<!--*- mode: xml -*-->
+<glade-interface>
+  <widget class="GtkWindow" id="top_level_window">
+    <property name="visible">True</property>
+    <property name="default_width">200</property>
+    <property name="default_height">100</property>
+    <signal name="destroy" handler="on_top_level_window_destroy"/>
+    <child>
+      <widget class="GtkButton" id="next">
+        <property name="visible">True</property>
+        <property name="label">gtk-media-next</property>
+        <property name="use_stock">True</property>
+        <property name="response_id">0</property>
+        <signal name="clicked" handler="on_next_button_clicked"/>
+      </widget>
+    </child>
+  </widget>
+</glade-interface>
