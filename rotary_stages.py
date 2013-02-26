@@ -11,7 +11,7 @@ class rotary_stage(zaber_device):
     ''' rotary_stage(connection, 
                  device_number,
                  id, 
-                 deg_per_step = .000234375 * 64,   
+                 deg_per_step = .000234375 * 64,   # default value for T-RS60A
                  units = 'deg',
                  run_mode = CONTINUOUS,
                  action_handler = None,
