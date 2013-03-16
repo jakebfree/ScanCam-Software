@@ -69,15 +69,15 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
 #	t	time in seconds to record video
 
 # Temporary x--theta scan for testing
-#keys = ( 'x', 'theta', 'z', 't' )
-#scanpoints = [ dict( zip(keys, ( 20, 45, 1, 0 ))) ]
-#scanpoints += [ dict( zip(keys, ( 40, 90, 4, 0 ))) ]
-#scanpoints += [ dict( zip(keys, ( 5, 120, 7, 0 ))) ]
+xtz_keys = ( 'x', 'theta', 'z', 't' )
+arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
+arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 40, 90, 4, 0 ))) ]
+arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
 
+xyz_keys = ( 'x', 'y', 'z', 't' )
 
 # Place-holding xyz scan matrix for testing
 # all numbers in mm
-xyz_keys = ( 'x', 'y', 'z', 't' )
 arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 5, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 5, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 5, 0 ))) ]
@@ -86,8 +86,9 @@ arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 5, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 5, 0 ))) ]
 
 
-# First cut at flight-like config
-#
+
+# First cut at flight-like scan
+
 # Constants used for calculating xyz scan matrix 
 well_width = 19.1
 well_height = 26.8
@@ -97,37 +98,37 @@ fov_width = well_width/float(h_scan_points)
 fov_height = well_height/float(v_scan_points)
 
 # Corners determined from solid model represent top and right edges of wells
-corners = ( {'x':152.2, 'y':47.3},
-            {'x':152.2, 'y':9.0},
-            {'x':152.2, 'y':-29.3},
-            {'x':124.1, 'y':47.3},
-            {'x':124.1, 'y':9.0},
-            {'x':124.1, 'y':-29.3},
-            {'x':28.1, 'y':47.3},
-            {'x':28.1, 'y':9.0},
-            {'x':28.1, 'y':-29.3},
-            {'x':0.0, 'y':47.3},
-            {'x':0.0, 'y':9.0},
-            {'x':0.0, 'y':-29.3}
+corners = ( {'x':152.2, 'y':47.3, 'z':default_z},
+            {'x':152.2, 'y':9.0, 'z':default_z},
+            {'x':152.2, 'y':-29.3, 'z':default_z},
+            {'x':124.1, 'y':47.3, 'z':default_z},
+            {'x':124.1, 'y':9.0, 'z':default_z},
+            {'x':124.1, 'y':-29.3, 'z':default_z},
+            {'x':28.1, 'y':47.3, 'z':default_z},
+            {'x':28.1, 'y':9.0, 'z':default_z},
+            {'x':28.1, 'y':-29.3, 'z':default_z},
+            {'x':0.0, 'y':47.3, 'z':default_z},
+            {'x':0.0, 'y':9.0, 'z':default_z},
+            {'x':0.0, 'y':-29.3, 'z':default_z}
         )
 
 # Iterate 4 columns across and 5 rows down across each well from corner
-xy_scan = []
+model_xyz_scan = []
 for corner in corners:
         x0 = corner['x'] + fov_width/2.0
         y0 = corner['y'] - fov_height/2.0
         for j in range(v_scan_points):
                 for i in range(h_scan_points):
                         # Count even rows up and odd rows down to skip track back to 0
-                        if j%2 == 0: xy_scan.append( { 'x':x0+i*fov_width, 'y':y0-j*fov_height } )
-                        if j%2 == 1: xy_scan.append( { 'x':x0+(h_scan_points-i)*fov_width, 'y':y0-j*fov_height } )
+                        if j%2 == 0: moedl_xyz_scan.append( { 'x':x0+i*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
+                        if j%2 == 1: model_xyz_scan.append( { 'x':x0+(h_scan_points-i)*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
                                         
 
 
 # Convert xyz scan to x-theta-z
-arm_length = 55.0         ## mm
-min_X = 0.0
-max_X = 172.0
+arm_length = 55.0       # mm
+min_X = 0.0             # mm
+max_X = 176.0           # mm
 
 xthetaz_scan = []
 xt_keys = ( 'x', 'theta' )
