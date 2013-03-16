@@ -25,15 +25,15 @@ from math import *
 
 
 
-MAX_ACTION_TIMEOUT = 100                # in seconds
-DEFAULT_ACTION_TIMEOUT = 50             # in seconds
+MAX_STAGE_ACTION_TIMEOUT = 100                # in seconds
+DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
 verbose = False
 
 def wait_for_actions_to_complete( devices, timeout_secs ):
-        if timeout_secs > MAX_ACTION_TIMEOUT:
+        if timeout_secs > MAX_STAGE_ACTION_TIMEOUT:
                 #TODO: raise Exception
                 return
         
@@ -78,12 +78,12 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
 # Place-holding xyz scan matrix for testing
 # all numbers in mm
 xyz_keys = ( 'x', 'y', 'z', 't' )
-xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 5, 0 ))) ]
-xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 5, 0 ))) ]
-xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 5, 0 ))) ]
-xyz_scan += [ dict( zip(xyz_keys, ( 60, -20, 5, 0 ))) ]
-xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 5, 0 ))) ]
-xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 5, 0 ))) ]
+arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 5, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 5, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 5, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 60, -20, 5, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 5, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 5, 0 ))) ]
 
 
 # First cut at flight-like config
@@ -187,15 +187,15 @@ try:
         theta.home()
         x.step()
         theta.step()
-        wait_for_actions_to_complete( (x, theta), DEFAULT_ACTION_TIMEOUT )
+        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                 
-        # Loop and restart scan with a periodicity
+        # Loop and continually start scans with a timed periodicity
         completed_scans = 0
         last_scan_start_time = 0
         while (1):
 
-                # Check to see if it's time to start a new scan
+                # Once a second, check to see if it's time to start a new scan
                 if time() <= last_scan_start_time + min_period_bt_scans*60.0:
                         sleep(1)
                         continue
@@ -208,18 +208,25 @@ try:
                         
                 # Step through scan
                 print "Starting scan number", completed_scans + 1
-                step_num = 0
+                scan_point = 0
                 while len(x.command_queue) > 0:
+                        # Step to next queued scan point for all axes
                         x.step()
                         theta.step()
-                        step_num += 1
+                        scan_point += 1
                         if verbose: print "Step", step_num
-                        wait_for_actions_to_complete( (x, theta), DEFAULT_ACTION_TIMEOUT )
+                        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
 
+                        # Build video file target basename in the format:
+                        #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
+                                               
+                        # Start raw video recording
                         if verbose: print "sleeping to simulate video capture"
-                        sleep(3)
+                                sleep(3)
+
+                        # Create video clip from raw frames
                         if verbose: print "sleep again to simulate video compression"
-                        sleep(3)
+                                sleep(3)
 
                 completed_scans += 1
                 
@@ -228,7 +235,7 @@ try:
         theta.home()
         x.step()
         theta.step()
-        wait_for_actions_to_complete( (x, theta), DEFAULT_ACTION_TIMEOUT )
+        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
 
 except KeyboardInterrupt:
         print "Completed", completed_scans, "scans."
