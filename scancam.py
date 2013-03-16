@@ -118,7 +118,7 @@ arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
 
 xyz_keys = ( 'x', 'y', 'z', 't' )
 
-# Place-holding xyz scan matrix for testing
+# Place-holding xyz scan matrix for basic testing
 # all numbers in mm
 arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 5, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 5, 0 ))) ]
@@ -141,18 +141,18 @@ fov_height = well_height/float(v_scan_points)
 
 default_z = 3.0
 # Corners determined from solid model represent top and right edges of wells
-corners = ( {'x':152.2, 'y':47.3, 'z':default_z},
-            {'x':152.2, 'y':9.0, 'z':default_z},
-            {'x':152.2, 'y':-29.3, 'z':default_z},
-            {'x':124.1, 'y':47.3, 'z':default_z},
-            {'x':124.1, 'y':9.0, 'z':default_z},
-            {'x':124.1, 'y':-29.3, 'z':default_z},
-            {'x':28.1, 'y':47.3, 'z':default_z},
-            {'x':28.1, 'y':9.0, 'z':default_z},
-            {'x':28.1, 'y':-29.3, 'z':default_z},
-            {'x':0.0, 'y':47.3, 'z':default_z},
-            {'x':0.0, 'y':9.0, 'z':default_z},
-            {'x':0.0, 'y':-29.3, 'z':default_z}
+corners = ( {'x':152.2, 'y':47.3, 'z':5.0},
+            {'x':152.2, 'y':9.0, 'z':1.0},
+            {'x':152.2, 'y':-29.3, 'z':2.0},
+            {'x':124.1, 'y':47.3, 'z':3.0},
+            {'x':124.1, 'y':9.0, 'z':4.0},
+            {'x':124.1, 'y':-29.3, 'z':5.0},
+            {'x':28.1, 'y':47.3, 'z':0.0},
+            {'x':28.1, 'y':9.0, 'z':1.0},
+            {'x':28.1, 'y':-29.3, 'z':2.0},
+            {'x':0.0, 'y':47.3, 'z':3.0},
+            {'x':0.0, 'y':9.0, 'z':4.0},
+            {'x':0.0, 'y':-29.3, 'z':5.0}
         )
 
 # Iterate 4 columns across and 5 rows down across each well from corner
@@ -180,19 +180,27 @@ ser = serial_connection('COM1')
 
 try:
         # Instantiate the axes
-        x = linear_slide(ser, 1, mm_per_rev = .61, verbose = verbose, run_mode = STEP)
-        theta = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .61 mm/rev
+        x_stage = linear_slide(ser, 1, mm_per_rev = .61, verbose = verbose, run_mode = STEP)
 
+        # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
+        theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+
+        # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
+        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+        
         # Open serial connection
         print "Opening serial connection in thread"
         thread.start_new_thread( ser.open, ())
 
         # Home all axes
-        x.home()
-        theta.home()
-        x.step()
-        theta.step()
-        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
+        x_stage.home()
+        theta_stage.home()
+        z_stage.home()
+        x_stage.step()
+        theta_stage.step()
+        z_stage.step()
+        wait_for_actions_to_complete( (x_stage, theta_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                 
         # Loop and continually start scans with a timed periodicity
@@ -208,39 +216,46 @@ try:
                 
                 # Enqueue scan point move commands
                 for point in model_xtz_scan:
-                        x.move_absolute( point['x'] )
-                        theta.move_absolute( point['theta'] )
+                        x_stage.move_absolute( point['x'] )
+                        theta_stage.move_absolute( point['theta'] )
+                        z_stage.move_absolute( point['z'] )
                         
                 # Step through scan
                 print "Starting scan number", completed_scans + 1
                 scan_point = 0
-                while len(x.command_queue) > 0:
+                while         len(x_stage.command_queue) > 0 and \
+                              len(theta_stage.command_queue) > 0 and \
+                              len(z_stage.command_queue) > 0:
+                        
                         # Step to next queued scan point for all axes
-                        x.step()
-                        theta.step()
+                        x_stage.step()
+                        theta_stage.step()
+                        z_stage.step()
                         scan_point += 1
                         if verbose: print "Step", step_num
-                        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
+                        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
                                                
                         # Start raw video recording
                         if verbose: print "sleeping to simulate video capture"
-                        sleep(3)
+                        sleep(1)
 
                         # Create video clip from raw frames
                         if verbose: print "sleep again to simulate video compression"
-                        sleep(3)
+                        sleep(1)
 
                 completed_scans += 1
                 
         # Home all axes
-        x.home()
-        theta.home()
-        x.step()
-        theta.step()
-        wait_for_actions_to_complete( (x, theta), DEFAULT_STAGE_ACTION_TIMEOUT )
+        x_stage.home()
+        theta_stage.home()
+        z_stage.home()
+        x_stage.step()
+        theta_stage.step()
+        z_stage.step()
+        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
 except KeyboardInterrupt:
         print "Completed", completed_scans, "scans."
