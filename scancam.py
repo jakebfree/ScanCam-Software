@@ -52,6 +52,48 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
                         print "Wait for actions to complete: timeout after %d secs" % counter
                         break
 
+                
+# Convert xyz scan to x-theta-z
+def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
+
+        xthetaz_scan = []
+        xt_keys = ( 'x', 'theta', 'z' )
+        used_negative_last_time = False
+        for xyz in xyz_scan:
+                x = xyz['x']
+                y = xyz['y']
+
+                # Calculate Radial Coordinates
+                # There are regions (closer to X=0) where the arm can't swing to the correct y value
+                # without swinging back toward the negative X direction. The angle required for the
+                # same y value but swinging back is the negative of the angle. The rotary stage cannot
+                # handle negative numbers so 360 is added. Therefore, the negative of acos(y/arm) is
+                # calculated as:   # 360 - acos(y/arm).
+                #
+                # There may be areas where a scan crosses over the edge of where it can reach using the
+                # acos or must use its negative. In order to avoid swinging way around between scan points
+                # when it doesn't have to, it first tries using the same type of angle (acos or its
+                # negative) that it did last time in order to avoid unnecessary swings.
+                if not used_negative_last_time:
+                        theta = degrees( acos( float(y)/float(arm_length) ))
+                else:
+                        theta = 360 - degrees( acos( float(y)/float(arm_length) ))
+
+                X = x - arm_length * sin( radians( theta ) )
+
+                # If the calculated X is out of bounds, swing theta to its negative (which could be back
+                # to the natural acos)
+                if X < min_X or X > max_X:
+                        used_negative_last_time = not used_negative_last_time
+                        theta = 360 - theta     
+                        X = x - arm_length * sin( radians( theta ) )
+
+                # Put x-theta coord in scan list
+                xtz = dict( zip( xt_keys, ( X, theta, xyz['z'])))
+                xthetaz_scan.append( xtz )
+                if verbose: print "Converted to", xt, "from", xy 
+
+        return xthetaz_scan
 
 # parse arguments
 # scancam [OPTION]... [SCANFILE]...
@@ -97,6 +139,7 @@ v_scan_points = 5
 fov_width = well_width/float(h_scan_points)
 fov_height = well_height/float(v_scan_points)
 
+default_z = 3.0
 # Corners determined from solid model represent top and right edges of wells
 corners = ( {'x':152.2, 'y':47.3, 'z':default_z},
             {'x':152.2, 'y':9.0, 'z':default_z},
@@ -120,51 +163,12 @@ for corner in corners:
         for j in range(v_scan_points):
                 for i in range(h_scan_points):
                         # Count even rows up and odd rows down to skip track back to 0
-                        if j%2 == 0: moedl_xyz_scan.append( { 'x':x0+i*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
+                        if j%2 == 0: model_xyz_scan.append( { 'x':x0+i*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
                         if j%2 == 1: model_xyz_scan.append( { 'x':x0+(h_scan_points-i)*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
                                         
 
-
-# Convert xyz scan to x-theta-z
-arm_length = 55.0       # mm
-min_X = 0.0             # mm
-max_X = 176.0           # mm
-
-xthetaz_scan = []
-xt_keys = ( 'x', 'theta' )
-used_negative_last_time = False
-for xy in xy_scan:
-        x = xy['x']
-        y = xy['y']
-
-        # Calculate Radial Coordinates
-        # There are regions (closer to X=0) where the arm can't swing to the correct y value
-        # without swinging back toward the negative X direction. The angle required for the
-        # same y value but swinging back is the negative of the angle. The rotary stage cannot
-        # handle negative numbers so 360 is added. Therefore, the negative of acos(y/arm) is
-        # calculated as:   # 360 - acos(y/arm).
-        #
-        # There may be areas where a scan crosses over the edge of where it can reach using the
-        # acos or must use its negative. In order to avoid swinging way around between scan points
-        # when it doesn't have to, it first tries using the same type of angle (acos or its
-        # negative) that it did last time in order to avoid unnecessary swings.
-        if not used_negative_last_time:
-                theta = degrees( acos( float(y)/float(arm_length) ))
-        else:
-                theta = 360 - degrees( acos( float(y)/float(arm_length) ))
-        X = x - arm_length * sin( radians( theta ) )
-
-        # If the calculated X is out of bounds, swing theta to its negative (which could be back
-        # to the natural acos)
-        if X < min_X or X > max_X:
-                used_negative_last_time = not used_negative_last_time
-                theta = 360 - theta     
-                X = x - arm_length * sin( radians( theta ) )
-
-        # Put radial coord in scan list
-        xt = dict( zip( xt_keys, ( X, theta)))
-        xthetaz_scan.append( xt )
-        if verbose: print "Converted to", xt, "from", xy 
+# Convert from xyz coordinates to x-theta-z coord
+model_xtz_scan = xyz2xtz( model_xyz_scan )
 
 
 #sys.exit(0)
@@ -203,7 +207,7 @@ try:
                 last_scan_start_time = time()
                 
                 # Enqueue scan point move commands
-                for point in xthetaz_scan:
+                for point in model_xtz_scan:
                         x.move_absolute( point['x'] )
                         theta.move_absolute( point['theta'] )
                         
@@ -223,11 +227,11 @@ try:
                                                
                         # Start raw video recording
                         if verbose: print "sleeping to simulate video capture"
-                                sleep(3)
+                        sleep(3)
 
                         # Create video clip from raw frames
                         if verbose: print "sleep again to simulate video compression"
-                                sleep(3)
+                        sleep(3)
 
                 completed_scans += 1
                 
