@@ -88,6 +88,12 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                         theta = 360 - theta     
                         X = x - arm_length * sin( radians( theta ) )
 
+                # If X is still out of bounds, it must be unachievable. Raise exception
+                if X < min_X or X > max_X:
+                        print "Unable to translate (%f, %f) to X-theta coordinates." % (x,y)
+                        print "Calculated X value of %f is out of range." % X
+                        raise Exception
+                
                 # Put x-theta coord in scan list
                 xtz = dict( zip( xt_keys, ( X, theta, xyz['z'])))
                 xthetaz_scan.append( xtz )
@@ -168,7 +174,11 @@ for corner in corners:
                                         
 
 # Convert from xyz coordinates to x-theta-z coord
-model_xtz_scan = xyz2xtz( model_xyz_scan )
+try:
+        model_xtz_scan = xyz2xtz( model_xyz_scan )
+except:
+        print "Unable to translate xyz scan points to x-theta-z. Exiting."
+        sys.exit(0)
 
 
 #sys.exit(0)
