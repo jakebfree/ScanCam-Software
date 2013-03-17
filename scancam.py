@@ -188,6 +188,36 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
 
 
 
+def generate_six_well_xy_corners( top_left_corner ):
+        '''generate_six_well_xy_corners( top_left_corner_of_top_left_well )
+
+        Takes the top-left corner of the top-left well and generates a list
+        of the top-left corners of all six wells.
+
+        The x-y values in this list can be used (with z and t values added)
+        to generate a set of corners that generate a full scan
+        with build_xyz_scan_from_target_corners()
+
+        Takes a dictionary with two keys: 'x' and 'y'
+        '''
+
+        # These were calculated from the list of twelve well corners measured from the SolidWorks model
+        delta_corners = [       {'y': 0.0, 'x': 0.0},
+                                {'y': 38.3, 'x': 0.0},
+                                {'y': 76.6, 'x': 0.0},
+                                {'y': 0.0, 'x': 28.1},
+                                {'y': 38.3, 'x': 28.1},
+                                {'y': 76.6, 'x': 28.1}    ]
+
+        corners = []
+        for delta_corner in delta_corners:
+                corner = {'x': (top_left_corner['x']-delta_corner['x']), 'y': (top_left_corner['y']-delta_corner['y']) }
+                corners.append( corner )
+
+        return corners
+                                                                               
+                
+
 
 # parse arguments
 # scancam [OPTION]... [SCANFILE]...
