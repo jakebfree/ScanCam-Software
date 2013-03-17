@@ -278,8 +278,6 @@ model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 
 
-
-
 if __name__ == '__main__':
 
         # Convert from xyz coordinates to x-theta-z coord
@@ -296,19 +294,20 @@ if __name__ == '__main__':
         ser = serial_connection('COM1')
 
 
+
+        # Instantiate the axes
+        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
+        x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
+
+        # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
+        theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+
+        # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
+        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+
+
+
         try:
-
-                # Instantiate the axes
-                # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
-                x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
-
-                # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
-                theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
-
-                # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
-                z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
-
-
                 # Open serial connection
                 print "Opening serial connection in thread"
                 thread.start_new_thread( ser.open, ())
@@ -316,6 +315,7 @@ if __name__ == '__main__':
 
                 # TODO: Send command to reset stages to defaults
                 # TODO: Read in the default target speed for z so we can use it for z0 moves
+
                 
                 # Home all axes
                 if home_on_start:
