@@ -389,15 +389,6 @@ if __name__ == '__main__':
                                 
                         completed_scans += 1
                         
-                # Home all axes
-                x_stage.home()
-                theta_stage.home()
-                z_stage.home()
-                x_stage.step()
-                theta_stage.step()
-                z_stage.step()
-                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
-
         except KeyboardInterrupt:
                 print "Completed", completed_scans, "scans."
 
