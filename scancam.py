@@ -45,7 +45,7 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
                                 devices_in_action.append( device.get_id() )
                 if not devices_in_action:
                         break
-                #print "Device(s) still in action, sleep a sec"
+
                 sleep(1)
                 counter += 1
                 if counter > timeout_secs:
@@ -57,7 +57,7 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
 def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
 
         xthetaz_scan = []
-        xt_keys = ( 'x', 'theta', 'z' )
+        xt_keys = ( 'x', 'theta', 'z0', 'z1' )
         used_negative_last_time = False
         for xyz in xyz_scan:
                 x = xyz['x']
@@ -95,7 +95,9 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                         raise Exception
                 
                 # Put x-theta coord in scan list
-                xtz = dict( zip( xt_keys, ( X, theta, xyz['z'])))
+                xtz = { 'x': X, 'theta': theta, 'z0': xyz['z0'] }
+                if xyz.has_key('x1'):
+                        xtz['x1'] = xyz['x1']   
                 xthetaz_scan.append( xtz )
                 if verbose: print "Converted to", xt, "from", xy 
 
@@ -122,16 +124,16 @@ arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
 arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 40, 90, 4, 0 ))) ]
 arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
 
-xyz_keys = ( 'x', 'y', 'z', 't' )
+xyz_keys = ( 'x', 'y', 'z0', 'z1', 't' )
 
 # Place-holding xyz scan matrix for basic testing
 # all numbers in mm
-arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 5, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 5, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 5, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 60, -20, 5, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 5, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 5, 0 ))) ]
+arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 1, 4, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 6, 0, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 1, 4, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 60, -20, 6, 0, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 1, 4, 0 ))) ]
+arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 6, 0, 0 ))) ]
 
 
 
@@ -147,18 +149,18 @@ fov_height = well_height/float(v_scan_points)
 
 default_z = 3.0
 # Corners determined from solid model represent top and right edges of wells
-corners = ( {'x':152.2, 'y':47.3, 'z':5.0},
-            {'x':152.2, 'y':9.0, 'z':1.0},
-            {'x':152.2, 'y':-29.3, 'z':2.0},
-            {'x':124.1, 'y':47.3, 'z':3.0},
-            {'x':124.1, 'y':9.0, 'z':4.0},
-            {'x':124.1, 'y':-29.3, 'z':5.0},
-            {'x':28.1, 'y':47.3, 'z':0.0},
-            {'x':28.1, 'y':9.0, 'z':1.0},
-            {'x':28.1, 'y':-29.3, 'z':2.0},
-            {'x':0.0, 'y':47.3, 'z':3.0},
-            {'x':0.0, 'y':9.0, 'z':4.0},
-            {'x':0.0, 'y':-29.3, 'z':5.0}
+corners = ( {'x':152.2, 'y':47.3, 'z0':5.0, 'z1':2.0},
+            {'x':152.2, 'y':9.0, 'z0':1.0, 'z1':4.0},
+            {'x':152.2, 'y':-29.3, 'z0':2.0, 'z1':3.0},
+            {'x':124.1, 'y':47.3, 'z0':3.0, 'z1':2.0},
+            {'x':124.1, 'y':9.0, 'z0':4.0, 'z1':5.5},
+            {'x':124.1, 'y':-29.3, 'z0':5.0, 'z1':1.5},
+            {'x':28.1, 'y':47.3, 'z0':0.0},
+            {'x':28.1, 'y':9.0, 'z0':1.0},
+            {'x':28.1, 'y':-29.3, 'z0':2.0},
+            {'x':0.0, 'y':47.3, 'z0':3.0},
+            {'x':0.0, 'y':9.0, 'z0':4.0},
+            {'x':0.0, 'y':-29.3, 'z0':5.0}
         )
 
 # Iterate 4 columns across and 5 rows down across each well from corner
@@ -169,9 +171,16 @@ for corner in corners:
         for j in range(v_scan_points):
                 for i in range(h_scan_points):
                         # Count even rows up and odd rows down to skip track back to 0
-                        if j%2 == 0: model_xyz_scan.append( { 'x':x0+i*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
-                        if j%2 == 1: model_xyz_scan.append( { 'x':x0+(h_scan_points-i)*fov_width, 'y':y0-j*fov_height, 'z':corner['z'] } )
-                                        
+                        xyz = {}
+                        if j%2 == 0:
+                                xyz['x'] = x0 + i*fov_width
+                        if j%2 == 1:
+                                xyz['x'] = x0 + (h_scan_points-i)*fov_width
+                        xyz['y'] = y0 - j*fov_height
+                        xyz['z0'] = corner['z0']
+                        if xyz.has_key('z1'):
+                                xyz['z1'] = xyz['z1']
+                        model_xyz_scan.append( xyz )                
 
 # Convert from xyz coordinates to x-theta-z coord
 try:
@@ -181,7 +190,6 @@ except:
         sys.exit(0)
 
 
-#sys.exit(0)
 
 # Create serial connection
 # TODO: handle exceptions
@@ -210,10 +218,10 @@ try:
         x_stage.step()
         theta_stage.step()
         z_stage.step()
-        wait_for_actions_to_complete( (x_stage, theta_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                 
-        # Loop and continually start scans with a timed periodicity
+        # Loop and continually scan with a timed periodicity
         completed_scans = 0
         last_scan_start_time = 0
         while (1):
@@ -228,7 +236,7 @@ try:
                 for point in model_xtz_scan:
                         x_stage.move_absolute( point['x'] )
                         theta_stage.move_absolute( point['theta'] )
-                        z_stage.move_absolute( point['z'] )
+                        z_stage.move_absolute( point['z0'] )
                         
                 # Step through scan
                 print "Starting scan number", completed_scans + 1
