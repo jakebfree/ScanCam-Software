@@ -30,7 +30,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
-verbose = True
+verbose = False
 
 def wait_for_actions_to_complete( devices, timeout_secs ):
         if timeout_secs > MAX_STAGE_ACTION_TIMEOUT:
@@ -118,37 +118,59 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
 
         Builds an xyz scan of points across a list of equally sized rectangular targets.
 
-        The scan begins in the top-left corner of the first target and scans across and down it.
+        The scan begins in the top-left corner of the first target and scans across and down it
+        in an ess pattern that goes to the right across a row and left back across the next row.
         It then jumps to the top-left corner of the next target and scans it. Repeating until
         all of the targets are complete.
 
         It has no knowledge of the camera's field of view so the user must designate the correct
         number of horizontal and vertical scan points to achieve the correct step-over distances.
 
-        z0, z1, and t values are constant for each target and assigned to all scan points
+        The scan points alternate between starting with the given z0 and z1 in order to avoid
+        the extra z-axis move back to z0 for each point.
+
+        t values are constant for each target and assigned to all scan points
         '''
         cell_width = target_width/float(num_h_scan_points)
         cell_height = target_height/float(num_v_scan_points)
 
         # Iterate across rows and down columns to scan each target
         xyz_scan = []
+        first_z_last_time = ''
         for corner in corners:
                 x0 = corner['x'] + cell_width/2.0
                 y0 = corner['y'] - cell_height/2.0
                 for j in range(num_v_scan_points):
                         for i in range(num_h_scan_points):
-                                # Count even rows up and odd rows down to skip track back to 0
                                 xyz = {}
+                                
+                                # Count even rows up and odd rows down to skip track back to 0
                                 if j%2 == 0:
                                         xyz['x'] = x0 + i*cell_width
                                 if j%2 == 1:
                                         xyz['x'] = x0 + (num_h_scan_points-i)*cell_width
+
                                 xyz['y'] = y0 - j*cell_height
-                                xyz['z0'] = corner['z0']
+
+                                # If there is a second z-axis value, alternate which one you
+                                # start with to avoid waiting for z to get back to z0 every time
                                 if corner.has_key('z1'):
-                                        xyz['z1'] = corner['z1']
+                                        if first_z_last_time != 'z0':
+                                                xyz['z0'] = corner['z0']
+                                                xyz['z1'] = corner['z1']
+                                                first_z_last_time = 'z0'
+                                        else:
+                                                xyz['z0'] = corner['z1']
+                                                xyz['z1'] = corner['z0']
+                                                first_z_last_time = 'z1'
+                                # If there's no second z value, just use the one you have
+                                else:
+                                        xyz['z0'] = corner['z0']
+                                                
                                 if corner.has_key('t'):
                                         xyz['t'] = corner['t']
+
+                                # We're done with that point, add it to the new scan
                                 xyz_scan.append( xyz )
                                 if verbose: print "Appended", xyz
 
