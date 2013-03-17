@@ -63,7 +63,7 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                 x = xyz['x']
                 y = xyz['y']
 
-                # Calculate Radial Coordinates
+                # Calculate X-theta Coordinates
                 # There are regions (closer to X=0) where the arm can't swing to the correct y value
                 # without swinging back toward the negative X direction. The angle required for the
                 # same y value but swinging back is the negative of the angle. The rotary stage cannot
@@ -92,16 +92,64 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                 if X < min_X or X > max_X:
                         print "Unable to translate (%f, %f) to X-theta coordinates." % (x,y)
                         print "Calculated X value of %f is out of range." % X
-                        raise Exception
+                        raise SyntaxError
                 
                 # Put x-theta coord in scan list
                 xtz = { 'x': X, 'theta': theta, 'z0': xyz['z0'] }
                 if xyz.has_key('x1'):
                         xtz['x1'] = xyz['x1']   
                 xthetaz_scan.append( xtz )
-                if verbose: print "Converted to", xt, "from", xy 
+                counter += 1
+                if verbose: print "Converted to", X, "from", x 
 
         return xthetaz_scan
+
+
+
+
+def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
+                                        num_h_scan_points = 4, num_v_scan_points = 5):
+        '''build_xyz_scan_from_target_corners( corners, well_width, well_height, num_h_scan_points, num_v_scan_points )
+
+        Builds an xyz scan of points across a list of equally sized rectangular targets.
+
+        The scan begins in the top-left corner of the first target and scans across and down it.
+        It then jumps to the top-left corner of the next target and scans it. Repeating until
+        all of the targets are complete.
+
+        It has no knowledge of the camera's field of view so the user must designate the correct
+        number of horizontal and vertical scan points to achieve the correct step-over distances.
+
+        z0, z1, and t values are constant for each target and assigned to all scan points
+        '''
+        cell_width = target_width/float(num_h_scan_points)
+        cell_height = target_height/float(num_v_scan_points)
+
+        # Iterate across rows and down columns to scan each target
+        xyz_scan = []
+        for corner in corners:
+                x0 = corner['x'] + cell_width/2.0
+                y0 = corner['y'] - cell_height/2.0
+                for j in range(num_v_scan_points):
+                        for i in range(num_h_scan_points):
+                                # Count even rows up and odd rows down to skip track back to 0
+                                xyz = {}
+                                if j%2 == 0:
+                                        xyz['x'] = x0 + i*cell_width
+                                if j%2 == 1:
+                                        xyz['x'] = x0 + (num_h_scan_points-i)*cell_width
+                                xyz['y'] = y0 - j*cell_height
+                                xyz['z0'] = corner['z0']
+                                if corner.has_key('z1'):
+                                        xyz['z1'] = corner['z1']
+                                if corner.has_key('t'):
+                                        xyz['t'] = corner['t']
+                                xyz_scan.append( xyz )
+                                if verbose: print "Appended", xyz
+
+        return xyz_scan
+
+
 
 # parse arguments
 # scancam [OPTION]... [SCANFILE]...
@@ -139,13 +187,6 @@ arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 6, 0, 0 ))) ]
 
 # First cut at flight-like scan
 
-# Constants used for calculating xyz scan matrix 
-well_width = 19.1
-well_height = 26.8
-h_scan_points = 4
-v_scan_points = 5
-fov_width = well_width/float(h_scan_points)
-fov_height = well_height/float(v_scan_points)
 
 default_z = 3.0
 # Corners determined from solid model represent top and right edges of wells
@@ -162,30 +203,12 @@ corners = ( {'x':152.2, 'y':47.3, 'z0':5.0, 'z1':2.0},
             {'x':0.0, 'y':9.0, 'z0':4.0},
             {'x':0.0, 'y':-29.3, 'z0':5.0}
         )
-
-# Iterate 4 columns across and 5 rows down across each well from corner
-model_xyz_scan = []
-for corner in corners:
-        x0 = corner['x'] + fov_width/2.0
-        y0 = corner['y'] - fov_height/2.0
-        for j in range(v_scan_points):
-                for i in range(h_scan_points):
-                        # Count even rows up and odd rows down to skip track back to 0
-                        xyz = {}
-                        if j%2 == 0:
-                                xyz['x'] = x0 + i*fov_width
-                        if j%2 == 1:
-                                xyz['x'] = x0 + (h_scan_points-i)*fov_width
-                        xyz['y'] = y0 - j*fov_height
-                        xyz['z0'] = corner['z0']
-                        if xyz.has_key('z1'):
-                                xyz['z1'] = xyz['z1']
-                        model_xyz_scan.append( xyz )                
+model_xyz_scan = build_xyz_scan_from_target_corners( corners )
 
 # Convert from xyz coordinates to x-theta-z coord
 try:
         model_xtz_scan = xyz2xtz( model_xyz_scan )
-except:
+except SyntaxError:
         print "Unable to translate xyz scan points to x-theta-z. Exiting."
         sys.exit(0)
 
