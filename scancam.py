@@ -55,7 +55,13 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
                 
 # Convert xyz scan to x-theta-z
 def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
+        '''
+        xyz2xtz ( xyz_scan, arm_length, min_X, max_X )
 
+        Use physical geometry to translate from a cartesian xyz coord to the one
+        described by the x, theta, z where theta is the angle of the rotary axis
+        '''
+        
         xthetaz_scan = []
         xt_keys = ( 'x', 'theta', 'z0', 'z1' )
         used_negative_last_time = False
