@@ -30,7 +30,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
-verbose = True
+verbose = False
 home_on_start = False
 
 
@@ -58,13 +58,36 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
                         # TODO: Send stop signal in case we have a ridiculously low speed and it hasn't got there yet
                         break
 
+
+
+def xtz2xyz( xtz, arm_length = 55.0 ):
+        '''xthetaz2xyz( xtz )
+
+        Convert a {'x':<>, 'theta':<> } point to a { 'x':<> 'y':<>} point
+        If the passed dict has z0, z1, and/or t keys, the values are copied over
+        '''
+        
+        print "xtz =", xtz
+
+        xyz = {}
+        xyz['x'] = xtz['x'] + cos( radians(xtz['theta']) ) * arm_length
+        xyz['y'] = sin( radians(xtz['theta']) ) * arm_length
+        if xtz.has_key('z0'):
+                xyz['z0'] = xtz['z0']
+        if xtz.has_key('z1'):
+                xyz['z1'] = xtz['z1']
+        if xtz.has_key('t'):
+                xyz['t'] = xtz['t']
+
+        return xyz
+
                 
-# Convert xyz scan to x-theta-z
-def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
+
+def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
         '''
         xyz2xtz ( xyz_scan, arm_length, min_X, max_X )
 
-        Use physical geometry to translate from a cartesian xyz coord to the one
+        Use physical geometry to translate from a cartesian xyz coord scan to the one
         described by the x, theta, z where theta is the angle of the rotary axis
         '''
         
@@ -257,24 +280,8 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 
-
-
-
-# parse arguments
-# scancam [OPTION]... [SCANFILE]...
-#
-# -p, --min-period in minutes
-
-
-
-# open file and unpickle the scan
-
-# scan is a list of scanpoints represented as dictionaries with the keys:
-#	x	x-axis target location in mm
-#	theta	rotarty stage target location in deg
-#	z	z-axis target location in mm
-#	t	time in seconds to record video
-
+xyz_scan = model_xyz_scan
+#xyz_scan = generate_six_well_xy_corners( {'x': 
 
 
 
@@ -282,10 +289,26 @@ if __name__ == '__main__':
 
         # Convert from xyz coordinates to x-theta-z coord
         try:
-                model_xtz_scan = xyz2xtz( model_xyz_scan )
+                xtz_scan = xyz_scan_2_xthetaz_scan( model_xyz_scan )
         except SyntaxError:
                 print "Unable to translate xyz scan points to x-theta-z. Exiting."
                 sys.exit(0)
+
+
+        # parse arguments
+        # scancam [OPTION]... [SCANFILE]...
+        #
+        # -p, --min-period in minutes
+
+
+
+        # open file and unpickle the scan
+
+        # scan is a list of scanpoints represented as dictionaries with the keys:
+        #	x	x-axis target location in mm
+        #	theta	rotarty stage target location in deg
+        #	z	z-axis target location in mm
+        #	t	time in seconds to record video
 
 
 
@@ -342,11 +365,11 @@ if __name__ == '__main__':
                                
                         # Walk through scan
                         print "Starting scan number", completed_scans + 1
-                        scan_point = 0
-                        for point in model_xtz_scan:
+                        scan_point_num = 0
+                        for point in xtz_scan:
 
-                                scan_point += 1
-                                if verbose: print "Step", scan_point
+                                scan_point_num += 1
+                                if verbose: print "Step", scan_point_num, point
 
                                 # Enqueue scan point move commands
                                 x_stage.move_absolute( point['x'] )
