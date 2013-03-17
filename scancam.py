@@ -246,42 +246,119 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 
+if __name__ == '__main__':
+
+        # Convert from xyz coordinates to x-theta-z coord
+        try:
+                model_xtz_scan = xyz2xtz( model_xyz_scan )
+        except SyntaxError:
+                print "Unable to translate xyz scan points to x-theta-z. Exiting."
+                sys.exit(0)
 
 
-# Convert from xyz coordinates to x-theta-z coord
-try:
-        model_xtz_scan = xyz2xtz( model_xyz_scan )
-except SyntaxError:
-        print "Unable to translate xyz scan points to x-theta-z. Exiting."
-        sys.exit(0)
+
+        # Create serial connection
+        # TODO: handle exceptions
+        ser = serial_connection('COM1')
 
 
+        try:
+                # Instantiate the axes
+                # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
+                x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
 
-# Create serial connection
-# TODO: handle exceptions
-ser = serial_connection('COM1')
+                # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
+                theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
 
+                # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
+                z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-try:
-        # Instantiate the axes
-        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
-        x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
+                # Open serial connection
+                print "Opening serial connection in thread"
+                thread.start_new_thread( ser.open, ())
 
-        # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
-        theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+                # TODO: Send command to reset stages to defaults
+                # TODO: Read in the default target speed for z
+                
+                # Home all axes
+                if home_on_start:
+                        x_stage.home()
+                        theta_stage.home()
+                        z_stage.home()
+                        x_stage.step()
+                        theta_stage.step()
+                        z_stage.step()
+                        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
-        # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
-        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+                        
+                # Loop and continually scan with a timed periodicity
+                completed_scans = 0
+                last_scan_start_time = 0
+                while (1):
 
-        # Open serial connection
-        print "Opening serial connection in thread"
-        thread.start_new_thread( ser.open, ())
+                        # Once a second, check to see if it's time to start a new scan
+                        if time() <= last_scan_start_time + min_period_bt_scans*60.0:
+                                sleep(1)
+                                continue
+                        last_scan_start_time = time()
+                        
+                                
+                        # Step through scan
+                        #while         len(x_stage.command_queue) > 0 and \
+                                      #len(theta_stage.command_queue) > 0 and \
+                                      #len(z_stage.command_queue) > 0:
 
-        # TODO: Send command to reset stages to defaults
-        # TODO: Read in the default target speed for z
-        
-        # Home all axes
-        if home_on_start:
+                                
+                        # Walk through scan
+                        print "Starting scan number", completed_scans + 1
+                        scan_point = 0
+                        for point in model_xtz_scan:
+
+                                # Enqueue scan point move commands
+                                x_stage.move_absolute( point['x'] )
+                                theta_stage.move_absolute( point['theta'] )
+                                z_stage.move_absolute( point['z0'] )
+         
+                                # Set z-axis speed to default value. It may have been set to a different
+                                # value during an image-through-depth sequence
+
+                                
+
+                                # Step to next queued scan point for all axes
+                                x_stage.step()
+                                theta_stage.step()
+                                z_stage.step()
+                                scan_point += 1
+                                if verbose: print "Step", scan_point
+                                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+
+                                # Build video file target basename in the format:
+                                #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
+
+                                # If there is a second z-axis value, start the move to it as we start the video clip
+                                # The clip will progress through the depth of the move
+                                if point.has_key('z1'):
+                                        # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                        target_speed = abs(point['z1']-point['z0']) / float(point['t'])
+                                        z_stage.set_target_speed_in_units( target_speed, 'A-series' )
+                        
+                                        z_stage.move_absolute( point['z1'] )
+                                        z_stage.step()                
+                                
+                                # Start raw video recording
+                                if verbose: print "sleeping to simulate video capture"
+                                sleep(1)
+
+                                # Create video clip from raw frames
+                                if verbose: print "sleep again to simulate video compression"
+                                sleep(1)
+
+                                # Assure that the last z-axis move was completed
+                                wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
+                                
+                        completed_scans += 1
+                        
+                # Home all axes
                 x_stage.home()
                 theta_stage.home()
                 z_stage.home()
@@ -290,90 +367,13 @@ try:
                 z_stage.step()
                 wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
-                
-        # Loop and continually scan with a timed periodicity
-        completed_scans = 0
-        last_scan_start_time = 0
-        while (1):
-
-                # Once a second, check to see if it's time to start a new scan
-                if time() <= last_scan_start_time + min_period_bt_scans*60.0:
-                        sleep(1)
-                        continue
-                last_scan_start_time = time()
-                
-                        
-                # Step through scan
-                #while         len(x_stage.command_queue) > 0 and \
-                              #len(theta_stage.command_queue) > 0 and \
-                              #len(z_stage.command_queue) > 0:
-
-                        
-                # Walk through scan
-                print "Starting scan number", completed_scans + 1
-                scan_point = 0
-                for point in model_xtz_scan:
-
-                        # Enqueue scan point move commands
-                        x_stage.move_absolute( point['x'] )
-                        theta_stage.move_absolute( point['theta'] )
-                        z_stage.move_absolute( point['z0'] )
- 
-                        # Set z-axis speed to default value. It may have been set to a different
-                        # value during an image-through-depth sequence
-
-                        
-
-                        # Step to next queued scan point for all axes
-                        x_stage.step()
-                        theta_stage.step()
-                        z_stage.step()
-                        scan_point += 1
-                        if verbose: print "Step", scan_point
-                        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
-
-                        # Build video file target basename in the format:
-                        #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
-
-                        # If there is a second z-axis value, start the move to it as we start the video clip
-                        # The clip will progress through the depth of the move
-                        if point.has_key('z1'):
-                                # The move from z0 to z1 should take the same amount of time as the video clip duration
-                                target_speed = abs(point['z1']-point['z0']) / float(point['t'])
-                                z_stage.set_target_speed_in_units( target_speed, 'A-series' )
-                
-                                z_stage.move_absolute( point['z1'] )
-                                z_stage.step()                
-                        
-                        # Start raw video recording
-                        if verbose: print "sleeping to simulate video capture"
-                        sleep(1)
-
-                        # Create video clip from raw frames
-                        if verbose: print "sleep again to simulate video compression"
-                        sleep(1)
-
-                        # Assure that the last z-axis move was completed
-                        wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
-                        
-                completed_scans += 1
-                
-        # Home all axes
-        x_stage.home()
-        theta_stage.home()
-        z_stage.home()
-        x_stage.step()
-        theta_stage.step()
-        z_stage.step()
-        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
-
-except KeyboardInterrupt:
-        print "Completed", completed_scans, "scans."
+        except KeyboardInterrupt:
+                print "Completed", completed_scans, "scans."
 
 
-finally:            
-        # Close serial connection before final exit
-        print "Closing serial connection"
-        ser.close()
-        print "Connection closed"
+        finally:            
+                # Close serial connection before final exit
+                print "Closing serial connection"
+                ser.close()
+                print "Connection closed"
 
