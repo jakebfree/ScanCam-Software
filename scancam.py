@@ -31,6 +31,11 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 min_period_bt_scans = 1                 # in minutes
 
 verbose = False
+home_on_start = False
+
+
+
+
 
 def wait_for_actions_to_complete( devices, timeout_secs ):
         if timeout_secs > MAX_STAGE_ACTION_TIMEOUT:
@@ -50,6 +55,7 @@ def wait_for_actions_to_complete( devices, timeout_secs ):
                 counter += 1
                 if counter > timeout_secs:
                         print "Wait for actions to complete: timeout after %d secs" % counter
+                        # TODO: Send stop signal in case we have a ridiculously low speed and it hasn't got there yet
                         break
 
                 
@@ -104,6 +110,8 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                 xtz = { 'x': X, 'theta': theta, 'z0': xyz['z0'] }
                 if xyz.has_key('z1'):
                         xtz['z1'] = xyz['z1']   
+                if xyz.has_key('t'):
+                        xtz['t'] = xyz['t']
                 xthetaz_scan.append( xtz )
                 if verbose: print "Converted to", xtz, "from", xyz 
 
@@ -138,6 +146,7 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
         xyz_scan = []
         first_z_last_time = ''
         for corner in corners:
+                # The center of the first cell isn't the corner, it's half a cell over (and down)
                 x0 = corner['x'] + cell_width/2.0
                 y0 = corner['y'] - cell_height/2.0
                 for j in range(num_v_scan_points):
@@ -178,6 +187,8 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
 
 
 
+
+
 # parse arguments
 # scancam [OPTION]... [SCANFILE]...
 #
@@ -192,6 +203,10 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
 #	theta	rotarty stage target location in deg
 #	z	z-axis target location in mm
 #	t	time in seconds to record video
+
+
+
+
 
 # Temporary x--theta scan for testing
 xtz_keys = ( 'x', 'theta', 'z', 't' )
@@ -213,24 +228,25 @@ arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 6, 0, 0 ))) ]
 
 
 # First cut at flight-like scan
-
-
-default_z = 3.0
 # Corners determined from solid model represent top and right edges of wells
-corners = ( {'x':152.2, 'y':47.3, 'z0':5.0, 'z1':2.0},
-            {'x':152.2, 'y':9.0, 'z0':1.0, 'z1':4.0},
-            {'x':152.2, 'y':-29.3, 'z0':2.0, 'z1':3.0},
-            {'x':124.1, 'y':47.3, 'z0':3.0, 'z1':2.0},
-            {'x':124.1, 'y':9.0, 'z0':4.0, 'z1':5.5},
-            {'x':124.1, 'y':-29.3, 'z0':5.0, 'z1':1.5},
-            {'x':28.1, 'y':47.3, 'z0':0.0},
-            {'x':28.1, 'y':9.0, 'z0':1.0},
-            {'x':28.1, 'y':-29.3, 'z0':2.0},
-            {'x':0.0, 'y':47.3, 'z0':3.0},
-            {'x':0.0, 'y':9.0, 'z0':4.0},
-            {'x':0.0, 'y':-29.3, 'z0':5.0}
+corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
+            {'x':152.2, 'y':9.0, 'z0':0.0, 'z1':6.0, 't':3},
+            {'x':152.2, 'y':-29.3, 'z0':1.5, 'z1':4.5, 't':3},
+            {'x':124.1, 'y':47.3, 'z0':0.0, 'z1':6.0, 't':3},
+            {'x':124.1, 'y':9.0, 'z0':2.0, 'z1':4.0, 't':3},
+            {'x':124.1, 'y':-29.3, 'z0':0.0, 'z1':6.0, 't':3},
+            {'x':28.1, 'y':47.3, 'z0':0.0, 't':3},
+            {'x':28.1, 'y':9.0, 'z0':1.0, 't':3},
+            {'x':28.1, 'y':-29.3, 'z0':2.0, 't':3},
+            {'x':0.0, 'y':47.3, 'z0':3.0, 't':3},
+            {'x':0.0, 'y':9.0, 'z0':4.0, 't':3},
+            {'x':0.0, 'y':-29.3, 'z0':5.0, 't':3}
         )
-model_xyz_scan = build_xyz_scan_from_target_corners( corners )
+
+model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
+
+
+
 
 # Convert from xyz coordinates to x-theta-z coord
 try:
@@ -248,27 +264,31 @@ ser = serial_connection('COM1')
 
 try:
         # Instantiate the axes
-        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .61 mm/rev
-        x_stage = linear_slide(ser, 1, mm_per_rev = .61, verbose = verbose, run_mode = STEP)
+        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
+        x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
 
         # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
         theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
 
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
         z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
-        
+
         # Open serial connection
         print "Opening serial connection in thread"
         thread.start_new_thread( ser.open, ())
 
+        # TODO: Send command to reset stages to defaults
+        # TODO: Read in the default target speed for z
+        
         # Home all axes
-        x_stage.home()
-        theta_stage.home()
-        z_stage.home()
-        x_stage.step()
-        theta_stage.step()
-        z_stage.step()
-        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+        if home_on_start:
+                x_stage.home()
+                theta_stage.home()
+                z_stage.home()
+                x_stage.step()
+                theta_stage.step()
+                z_stage.step()
+                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                 
         # Loop and continually scan with a timed periodicity
@@ -299,6 +319,11 @@ try:
                         theta_stage.move_absolute( point['theta'] )
                         z_stage.move_absolute( point['z0'] )
  
+                        # Set z-axis speed to default value. It may have been set to a different
+                        # value during an image-through-depth sequence
+
+                        
+
                         # Step to next queued scan point for all axes
                         x_stage.step()
                         theta_stage.step()
@@ -310,9 +335,13 @@ try:
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
 
-                        # If there is a second z-axis value start the move to it as we start the video clip
+                        # If there is a second z-axis value, start the move to it as we start the video clip
                         # The clip will progress through the depth of the move
                         if point.has_key('z1'):
+                                # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                target_speed = abs(point['z1']-point['z0']) / float(point['t'])
+                                z_stage.set_target_speed_in_units( target_speed, 'A-series' )
+                
                                 z_stage.move_absolute( point['z1'] )
                                 z_stage.step()                
                         
