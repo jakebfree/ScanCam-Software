@@ -30,7 +30,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
-verbose = False
+verbose = True
 
 def wait_for_actions_to_complete( devices, timeout_secs ):
         if timeout_secs > MAX_STAGE_ACTION_TIMEOUT:
@@ -96,11 +96,10 @@ def xyz2xtz ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
                 
                 # Put x-theta coord in scan list
                 xtz = { 'x': X, 'theta': theta, 'z0': xyz['z0'] }
-                if xyz.has_key('x1'):
-                        xtz['x1'] = xyz['x1']   
+                if xyz.has_key('z1'):
+                        xtz['z1'] = xyz['z1']   
                 xthetaz_scan.append( xtz )
-                counter += 1
-                if verbose: print "Converted to", X, "from", x 
+                if verbose: print "Converted to", xtz, "from", xyz 
 
         return xthetaz_scan
 
@@ -255,30 +254,40 @@ try:
                         continue
                 last_scan_start_time = time()
                 
-                # Enqueue scan point move commands
+                        
+                # Step through scan
+                #while         len(x_stage.command_queue) > 0 and \
+                              #len(theta_stage.command_queue) > 0 and \
+                              #len(z_stage.command_queue) > 0:
+
+                        
+                # Walk through scan
+                print "Starting scan number", completed_scans + 1
+                scan_point = 0
                 for point in model_xtz_scan:
+
+                        # Enqueue scan point move commands
                         x_stage.move_absolute( point['x'] )
                         theta_stage.move_absolute( point['theta'] )
                         z_stage.move_absolute( point['z0'] )
-                        
-                # Step through scan
-                print "Starting scan number", completed_scans + 1
-                scan_point = 0
-                while         len(x_stage.command_queue) > 0 and \
-                              len(theta_stage.command_queue) > 0 and \
-                              len(z_stage.command_queue) > 0:
-                        
+ 
                         # Step to next queued scan point for all axes
                         x_stage.step()
                         theta_stage.step()
                         z_stage.step()
                         scan_point += 1
-                        if verbose: print "Step", step_num
+                        if verbose: print "Step", scan_point
                         wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
-                                               
+
+                        # If there is a second z-axis value start the move to it as we start the video clip
+                        # The clip will progress through the depth of the move
+                        if point.has_key('z1'):
+                                z_stage.move_absolute( point['z1'] )
+                                z_stage.step()                
+                        
                         # Start raw video recording
                         if verbose: print "sleeping to simulate video capture"
                         sleep(1)
@@ -287,6 +296,9 @@ try:
                         if verbose: print "sleep again to simulate video compression"
                         sleep(1)
 
+                        # Assure that the last z-axis move was completed
+                        wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
+                        
                 completed_scans += 1
                 
         # Home all axes
