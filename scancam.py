@@ -30,7 +30,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
-verbose = False
+verbose = True
 home_on_start = False
 
 
@@ -219,25 +219,6 @@ def generate_six_well_xy_corners( top_left_corner ):
                 
 
 
-# parse arguments
-# scancam [OPTION]... [SCANFILE]...
-#
-# -p, --min-period in minutes
-
-
-
-# open file and unpickle the scan
-
-# scan is a list of scanpoints represented as dictionaries with the keys:
-#	x	x-axis target location in mm
-#	theta	rotarty stage target location in deg
-#	z	z-axis target location in mm
-#	t	time in seconds to record video
-
-
-
-
-
 # Temporary x--theta scan for testing
 xtz_keys = ( 'x', 'theta', 'z', 't' )
 arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
@@ -276,6 +257,29 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 
+
+
+
+# parse arguments
+# scancam [OPTION]... [SCANFILE]...
+#
+# -p, --min-period in minutes
+
+
+
+# open file and unpickle the scan
+
+# scan is a list of scanpoints represented as dictionaries with the keys:
+#	x	x-axis target location in mm
+#	theta	rotarty stage target location in deg
+#	z	z-axis target location in mm
+#	t	time in seconds to record video
+
+
+
+
+
+
 if __name__ == '__main__':
 
         # Convert from xyz coordinates to x-theta-z coord
@@ -293,6 +297,7 @@ if __name__ == '__main__':
 
 
         try:
+
                 # Instantiate the axes
                 # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
                 x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
@@ -303,12 +308,14 @@ if __name__ == '__main__':
                 # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
                 z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
+
                 # Open serial connection
                 print "Opening serial connection in thread"
                 thread.start_new_thread( ser.open, ())
 
+
                 # TODO: Send command to reset stages to defaults
-                # TODO: Read in the default target speed for z
+                # TODO: Read in the default target speed for z so we can use it for z0 moves
                 
                 # Home all axes
                 if home_on_start:
@@ -332,34 +339,28 @@ if __name__ == '__main__':
                                 continue
                         last_scan_start_time = time()
                         
-                                
-                        # Step through scan
-                        #while         len(x_stage.command_queue) > 0 and \
-                                      #len(theta_stage.command_queue) > 0 and \
-                                      #len(z_stage.command_queue) > 0:
-
-                                
+                               
                         # Walk through scan
                         print "Starting scan number", completed_scans + 1
                         scan_point = 0
                         for point in model_xtz_scan:
+
+                                scan_point += 1
+                                if verbose: print "Step", scan_point
 
                                 # Enqueue scan point move commands
                                 x_stage.move_absolute( point['x'] )
                                 theta_stage.move_absolute( point['theta'] )
                                 z_stage.move_absolute( point['z0'] )
          
-                                # Set z-axis speed to default value. It may have been set to a different
+                                # TODO: Set z-axis speed to default value. It may have been set to a different
                                 # value during an image-through-depth sequence
-
-                                
+                                z_stage.set_target_speed_in_units( 2.0, 'A-series' )
 
                                 # Step to next queued scan point for all axes
                                 x_stage.step()
                                 theta_stage.step()
                                 z_stage.step()
-                                scan_point += 1
-                                if verbose: print "Step", scan_point
                                 wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                                 # Build video file target basename in the format:
