@@ -48,7 +48,32 @@ class linear_slide(zaber_device):
                 run_mode = run_mode,
                 action_handler = action_handler,
                 verbose = verbose)
-        
+
+
+    def set_target_speed_in_units( self, speed_units_per_s, controller_series = "T-series" ):
+        ''' set_target_speed( speed, stage_series )
+
+        Sets the speed at which move_relative and move_absolute commands will move
+        (after acceleration period) in terms of meaningful scientific units.
+        '''
+        # Constants backed out from zaber interface GUI
+        # TODO: The A-series number is a hack that was backed out to get the number i wanted
+        # contact Zaber to better understand the correct number for the LSA10A with
+        # different controllers
+        controller_factor = { 'A-series': .61035, 'T-series': 9.375 }
+
+        # TODO: read microstep resolution from ctrlr in case it differs from the default
+        ustep_resolution = 1.0/64.0       
+        units_per_ustep = self.units_per_step * ustep_resolution
+
+        try:
+            data = int(speed_units_per_s / controller_factor[controller_series] / units_per_ustep)
+            self.set_target_speed( data )
+        except KeyError:
+            print "set_target_speed():", controller_series, "is not a known controller series"
+            raise
+
+
 
 class multiaxis_linear_slides(zaber_multidevice):
     '''multiaxis_linear_slides(connection, 
@@ -91,6 +116,8 @@ class multiaxis_linear_slides(zaber_multidevice):
                                    run_mode = run_mode,
                                    action_handler = action_handler, 
                                    verbose=verbose)        
+        
+
         
 
 def linear_slide_example(io):
