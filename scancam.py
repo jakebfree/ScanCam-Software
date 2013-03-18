@@ -170,7 +170,7 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
         first_z_last_time = ''
         for corner in corners:
                 # The center of the first cell isn't the corner, it's half a cell over (and down)
-                x0 = corner['x'] + cell_width/2.0
+                x0 = corner['x'] - cell_width/2.0
                 y0 = corner['y'] - cell_height/2.0
                 for j in range(num_v_scan_points):
                         for i in range(num_h_scan_points):
@@ -178,9 +178,9 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
                                 
                                 # Count even rows up and odd rows down to skip track back to 0
                                 if j%2 == 0:
-                                        xyz['x'] = x0 + i*cell_width
+                                        xyz['x'] = x0 - i*cell_width
                                 if j%2 == 1:
-                                        xyz['x'] = x0 + (num_h_scan_points-i)*cell_width
+                                        xyz['x'] = x0 - (num_h_scan_points-1-i)*cell_width
 
                                 xyz['y'] = y0 - j*cell_height
 
@@ -283,15 +283,15 @@ model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-proto_home = {'x':70.0, 'y':55.0 }
+proto_home = {'x':69.0, 'y':55.0 }
 proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         corner['z0'] = 2.0
         corner['z1'] = 4.0
         corner['t'] = 2.0
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
-                                                     num_h_scan_points = 1,
-                                                     num_v_scan_points = 1,
+                                                     num_h_scan_points = 2,
+                                                     num_v_scan_points = 2,
                                                      verbosity = 1 )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
@@ -407,9 +407,10 @@ if __name__ == '__main__':
                                 # The clip will progress through the depth of the move
                                 if point.has_key('z1'):
                                         # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                        # TODO check for divide by zero
                                         target_speed = abs(point['z1']-point['z0']) / float(point['t'])
                                         z_stage.set_target_speed_in_units( target_speed, 'A-series' )
-                        
+
                                         z_stage.move_absolute( point['z1'] )
                                         z_stage.step()                
                                 
