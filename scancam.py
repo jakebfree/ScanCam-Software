@@ -70,8 +70,8 @@ def xtz2xyz( xtz, arm_length = 55.0 ):
         print "xtz =", xtz
 
         xyz = {}
-        xyz['x'] = xtz['x'] + cos( radians(xtz['theta']) ) * arm_length
-        xyz['y'] = sin( radians(xtz['theta']) ) * arm_length
+        xyz['x'] = xtz['x'] - sin( radians(xtz['theta']) ) * arm_length
+        xyz['y'] = -cos( radians(xtz['theta']) ) * arm_length
         if xtz.has_key('z0'):
                 xyz['z0'] = xtz['z0']
         if xtz.has_key('z1'):
@@ -83,7 +83,7 @@ def xtz2xyz( xtz, arm_length = 55.0 ):
 
                 
 
-def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0 ):
+def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0, verbosity = 0 ):
         '''
         xyz2xtz ( xyz_scan, arm_length, min_X, max_X )
 
@@ -110,11 +110,11 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
                 # when it doesn't have to, it first tries using the same type of angle (acos or its
                 # negative) that it did last time in order to avoid unnecessary swings.
                 if not used_negative_last_time:
-                        theta = degrees( acos( float(y)/float(arm_length) ))
+                        theta = degrees( acos( float(-y)/float(arm_length) ))
                 else:
-                        theta = 360 - degrees( acos( float(y)/float(arm_length) ))
+                        theta = 360 - degrees( acos( float(-y)/float(arm_length) ))
 
-                X = x - arm_length * sin( radians( theta ) )
+                X = x + arm_length * sin( radians( theta ) )
 
                 # If the calculated X is out of bounds, swing theta to its negative (which could be back
                 # to the natural acos)
@@ -136,7 +136,7 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
                 if xyz.has_key('t'):
                         xtz['t'] = xyz['t']
                 xthetaz_scan.append( xtz )
-                if verbose: print "Converted to", xtz, "from", xyz 
+                if verbosity: print "Converted to", xtz, "from", xyz 
 
         return xthetaz_scan
 
@@ -144,7 +144,7 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
 
 
 def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
-                                        num_h_scan_points = 4, num_v_scan_points = 5):
+                                        num_h_scan_points = 4, num_v_scan_points = 5, verbosity = 0):
         '''build_xyz_scan_from_target_corners( corners, well_width, well_height, num_h_scan_points, num_v_scan_points )
 
         Builds an xyz scan of points across a list of equally sized rectangular targets.
@@ -204,7 +204,7 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
 
                                 # We're done with that point, add it to the new scan
                                 xyz_scan.append( xyz )
-                                if verbose: print "Appended", xyz
+                                if verbosity: print "Appended", xyz
 
         return xyz_scan
 
@@ -276,12 +276,14 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
             {'x':0.0, 'y':9.0, 'z0':4.0, 't':3},
             {'x':0.0, 'y':-29.3, 'z0':5.0, 't':3}
         )
-
 model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 
+
+
+
 xyz_scan = model_xyz_scan
-#xyz_scan = generate_six_well_xy_corners( {'x': 
+
 
 
 
@@ -289,7 +291,7 @@ if __name__ == '__main__':
 
         # Convert from xyz coordinates to x-theta-z coord
         try:
-                xtz_scan = xyz_scan_2_xthetaz_scan( model_xyz_scan )
+                xtz_scan = xyz_scan_2_xthetaz_scan( xyz_scan, verbosity = 1 )
         except SyntaxError:
                 print "Unable to translate xyz scan points to x-theta-z. Exiting."
                 sys.exit(0)
