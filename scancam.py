@@ -135,6 +135,8 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
                         xtz['z1'] = xyz['z1']   
                 if xyz.has_key('t'):
                         xtz['t'] = xyz['t']
+                if xyz.has_key('point-id'):
+                        xtz['point-id'] = xyz['point-id']
                 xthetaz_scan.append( xtz )
                 if verbosity: print "Converted to", xtz, "from", xyz 
 
@@ -168,7 +170,9 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
         # Iterate across rows and down columns to scan each target
         xyz_scan = []
         first_z_last_time = ''
+        corner_num = 0
         for corner in corners:
+                corner_num += 1
                 # The center of the first cell isn't the corner, it's half a cell over (and down)
                 x0 = corner['x'] - cell_width/2.0
                 y0 = corner['y'] - cell_height/2.0
@@ -202,6 +206,9 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
                                 if corner.has_key('t'):
                                         xyz['t'] = corner['t']
 
+                                # Add cell identifier
+                                xyz['point-id'] = "%d-%d-%d" % ( corner_num, j, i)
+                                
                                 # We're done with that point, add it to the new scan
                                 xyz_scan.append( xyz )
                                 if verbosity: print "Appended", xyz
@@ -401,10 +408,13 @@ if __name__ == '__main__':
                                 wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                                 # Build video file target basename in the format:
-                                #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
+                                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
                                 t = gmtime( time() )
                                 t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
-                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+                                if point.has_key('point-id'):
+                                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                                else:
+                                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
                                 print filename_base
 
                                 # If there is a second z-axis value, start the move to it as we start the video clip
