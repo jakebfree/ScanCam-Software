@@ -283,15 +283,15 @@ model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-proto_home = {'x':69.0, 'y':55.0 }
+proto_home = {'x':65.0, 'y':55.0 }
 proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         corner['z0'] = 2.0
-        corner['z1'] = 4.0
-        corner['t'] = 2.0
+        corner['z1'] = 5.0
+        corner['t'] = 5.0
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
-                                                     num_h_scan_points = 2,
-                                                     num_v_scan_points = 2,
+                                                     num_h_scan_points = 3,
+                                                     num_v_scan_points = 4,
                                                      verbosity = 1 )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
