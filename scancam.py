@@ -2,7 +2,7 @@ import argparse, sys
 from serial_connection import *
 from linear_slides import *
 from rotary_stages import *
-from time import sleep, time
+from time import sleep, time, gmtime
 import thread
 import pickle
 from math import *
@@ -402,6 +402,10 @@ if __name__ == '__main__':
 
                                 # Build video file target basename in the format:
                                 #       <payload>_<scan definition ID>_<scan point>.<YYYY-MM-DD_HH-mm-SS>.h264
+                                t = gmtime( time() )
+                                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+                                print filename_base
 
                                 # If there is a second z-axis value, start the move to it as we start the video clip
                                 # The clip will progress through the depth of the move
