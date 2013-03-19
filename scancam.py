@@ -6,6 +6,7 @@ from time import sleep, time, gmtime
 import thread
 import pickle
 from math import *
+import os
 
 
 
@@ -30,7 +31,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
 
 min_period_bt_scans = 1                 # in minutes
 
-verbose = False
+verbose = True
 home_on_start = False
 
 
@@ -130,7 +131,9 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
                         raise SyntaxError
                 
                 # Put x-theta coord in scan list
-                xtz = { 'x': X, 'theta': theta, 'z0': xyz['z0'] }
+                xtz = { 'x': X, 'theta': theta }
+                if xyz.has_key('z0'):
+                        xyz['z0'] = xyz['z0']
                 if xyz.has_key('z1'):
                         xtz['z1'] = xyz['z1']   
                 if xyz.has_key('t'):
@@ -201,7 +204,8 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
                                                 first_z_last_time = 'z1'
                                 # If there's no second z value, just use the one you have
                                 else:
-                                        xyz['z0'] = corner['z0']
+                                        if xyz.has_key('z0'):
+                                                xyz['z0'] = corner['z0']
                                                 
                                 if corner.has_key('t'):
                                         xyz['t'] = corner['t']
@@ -293,9 +297,9 @@ model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 proto_home = {'x':65.0, 'y':55.0 }
 proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
-        corner['z0'] = 2.0
-        corner['z1'] = 5.0
-        corner['t'] = 5.0
+        #corner['z0'] = 2.0
+        #corner['z1'] = 5.0
+        corner['t'] = 10.0
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
                                                      num_v_scan_points = 4,
@@ -335,7 +339,7 @@ if __name__ == '__main__':
 
         # Create serial connection
         # TODO: handle exceptions
-        ser = serial_connection('COM1')
+        ser = serial_connection('/dev/ttyS1')
 
 
 
@@ -395,27 +399,18 @@ if __name__ == '__main__':
                                 # Enqueue scan point move commands
                                 x_stage.move_absolute( point['x'] )
                                 theta_stage.move_absolute( point['theta'] )
-                                z_stage.move_absolute( point['z0'] )
+                                if point.has_key('z0'):
+                                        z_stage.move_absolute( point['z0'] )
          
-                                # TODO: Set z-axis speed to default value. It may have been set to a different
-                                # value during an image-through-depth sequence
-                                z_stage.set_target_speed_in_units( 2.0, 'A-series' )
+                                        # Set z-axis speed to moderately fast value. It may have been set to a different
+                                        # value during an image-through-depth sequence
+                                        z_stage.set_target_speed_in_units( 2.0, 'A-series' )
+                                        z_stage.step()
 
                                 # Step to next queued scan point for all axes
                                 x_stage.step()
                                 theta_stage.step()
-                                z_stage.step()
                                 wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
-
-                                # Build video file target basename in the format:
-                                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
-                                t = gmtime( time() )
-                                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
-                                if point.has_key('point-id'):
-                                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
-                                else:
-                                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
-                                print filename_base
 
                                 # If there is a second z-axis value, start the move to it as we start the video clip
                                 # The clip will progress through the depth of the move
@@ -429,8 +424,39 @@ if __name__ == '__main__':
                                         z_stage.step()                
                                 
                                 # Start raw video recording
-                                if verbose: print "sleeping to simulate video capture"
-                                sleep(1)
+                                camera_id = 1
+                                subsampling = 3
+                                binning = 0
+                                x0 = 320
+                                x1 = 2240
+                                y0 = 0
+                                y1 = 1920
+
+                                # Build video file target basename in the format:
+                                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
+                                t = gmtime( time() )
+                                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+                                if point.has_key('point-id'):
+                                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                                else:
+                                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+
+                                # Build camera command
+                                command = "idscam video --id " + str(camera_id)
+                                
+                                if subsampling:
+                                        command += " -s " + str(subsampling)
+                                if binning:
+                                        command += " -b " + str(binning)
+                                command += " -d " + str(point['t'])
+                                command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
+                                command += " " + filename_base
+
+                                # System call to camera with command
+                                if verbose: 
+                                        print "Sending camera command:", command
+                                        sleep(1)
+                                #os.system(command)
 
                                 # Create video clip from raw frames
                                 if verbose: print "sleep again to simulate video compression"
