@@ -34,7 +34,7 @@ min_period_bt_scans = 1                 # in minutes
 verbose = True
 home_on_start = False
 
-
+video_location = "/home/freemajb/data/scancam_proto_videos/"
 
 
 
@@ -299,7 +299,7 @@ proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         #corner['z0'] = 2.0
         #corner['z1'] = 5.0
-        corner['t'] = 10.0
+        corner['t'] = 10
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
                                                      num_v_scan_points = 4,
@@ -423,6 +423,10 @@ if __name__ == '__main__':
                                         z_stage.move_absolute( point['z1'] )
                                         z_stage.step()                
                                 
+                                # TODO: Looks like binned cropping is in terms of binned coordinates, but 
+                                # subsampled cropping is in terms of full sensor location (not subsampled) locations
+                                # verify and handle appropriately
+                                
                                 # Start raw video recording
                                 camera_id = 1
                                 subsampling = 3
@@ -452,11 +456,14 @@ if __name__ == '__main__':
                                 command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
                                 command += " " + filename_base
 
-                                # System call to camera with command
+                                # System call to camera
                                 if verbose: 
                                         print "Sending camera command:", command
                                         sleep(1)
-                                #os.system(command)
+                                try:
+                                        os.system(command)
+                                except:
+                                        raise
 
                                 # Create video clip from raw frames
                                 if verbose: print "sleep again to simulate video compression"
