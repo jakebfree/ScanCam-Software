@@ -301,8 +301,8 @@ for corner in proto_corners:
         #corner['z1'] = 5.0
         corner['t'] = 10
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
-                                                     num_h_scan_points = 3,
-                                                     num_v_scan_points = 4,
+                                                     num_h_scan_points = 2,
+                                                     num_v_scan_points = 2,
                                                      verbosity = 1 )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
@@ -459,15 +459,24 @@ if __name__ == '__main__':
                                 # System call to camera
                                 if verbose: 
                                         print "Sending camera command:", command
-                                        sleep(1)
+
                                 try:
                                         os.system(command)
+                                except KeyboardInterrupt:
+                                        raise        
                                 except:
                                         raise
 
                                 # Create video clip from raw frames
-                                if verbose: print "sleep again to simulate video compression"
-                                sleep(1)
+                                if verbose: print "Starting video compression."
+
+                                comp_command = "raw2h264 " + filename_base
+
+                                try:
+                                        ret_val = os.system( comp_command )
+                                except:
+                                        raise
+                                if verbose: print "Return val from compression was", ret_val
 
                                 # Assure that the last z-axis move was completed
                                 wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
