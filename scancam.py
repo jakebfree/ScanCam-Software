@@ -84,7 +84,7 @@ def xtz2xyz( xtz, arm_length = 55.0 ):
 
                 
 
-def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 176.0, verbosity = 0 ):
+def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 176.0, verbosity = 0 ):
         '''
         xyz2xtz ( xyz_scan, arm_length, min_X, max_X )
 
@@ -110,10 +110,26 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
                 # acos or must use its negative. In order to avoid swinging way around between scan points
                 # when it doesn't have to, it first tries using the same type of angle (acos or its
                 # negative) that it did last time in order to avoid unnecessary swings.
+                past_reach = False
                 if not used_negative_last_time:
-                        theta = degrees( acos( float(-y)/float(arm_length) ))
+                        try:
+                                theta = degrees( acos( float(-y)/float(arm_length) ))
+                        except ValueError:
+                                past_reach = True
                 else:
-                        theta = 360 - degrees( acos( float(-y)/float(arm_length) ))
+                        try:
+                                theta = 360 - degrees( acos( float(-y)/float(arm_length) ))
+                        except ValueError:
+                                past_reach = True
+                
+                # If the acos call raised an exception, the desired y-value is beyond the reach
+                # of the swing arm. Set the rotary axis straight up or down to do the best you can        
+                if past_reach:
+                        if( y > 0 ):
+                                theta = 180.0
+                        else:
+                                theta = 0.0
+                        if verbosity: print "Incapable of reaching location (%f, %f). Setting theta=%f" % (x, y, theta)
 
                 X = x + arm_length * sin( radians( theta ) )
 
@@ -149,7 +165,7 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 55.0, min_X = 0.0, max_X = 
 
 
 def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
-                                        num_h_scan_points = 4, num_v_scan_points = 5, verbosity = 0):
+                                        num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbosity = 0):
         '''build_xyz_scan_from_target_corners( corners, well_width, well_height, num_h_scan_points, num_v_scan_points )
 
         Builds an xyz scan of points across a list of equally sized rectangular targets.
@@ -179,10 +195,22 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
                 # The center of the first cell isn't the corner, it's half a cell over (and down)
                 x0 = corner['x'] - cell_width/2.0
                 y0 = corner['y'] - cell_height/2.0
-                for j in range(num_v_scan_points):
-                        for i in range(num_h_scan_points):
+                for jj in range(num_v_scan_points):
+                        for ii in range(num_h_scan_points):
                                 xyz = {}
                                 
+                                # It is useful for location calibration to be able to find the corners of the
+                                # wells. So with a True just_corners value we adjust the algorithm to skip all
+                                # locations except the corners.
+                                if not just_corners:
+                                        i = ii
+                                        j = jj
+                                else:
+                                        i = ii*(num_h_scan_points-1)
+                                        j = jj*(num_v_scan_points-1)
+                                        if ii > 1 or jj > 1:
+                                                break
+
                                 # Count even rows up and odd rows down to skip track back to 0
                                 if j%2 == 0:
                                         xyz['x'] = x0 - i*cell_width
@@ -239,9 +267,9 @@ def generate_six_well_xy_corners( top_left_corner ):
         delta_corners = [       {'y': 0.0, 'x': 0.0},
                                 {'y': 38.3, 'x': 0.0},
                                 {'y': 76.6, 'x': 0.0},
-                                {'y': 0.0, 'x': 28.1},
-                                {'y': 38.3, 'x': 28.1},
-                                {'y': 76.6, 'x': 28.1}    ]
+                                {'y': 8.7, 'x': 28.1},
+                                {'y': 47.0, 'x': 28.1},
+                                {'y': 85.3, 'x': 28.1}    ]
 
         corners = []
         for delta_corner in delta_corners:
@@ -294,15 +322,16 @@ model_xyz_scan = build_xyz_scan_from_target_corners( corners_from_sw )
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-proto_home = {'x':65.0, 'y':55.0 }
+proto_home = {'x':69.0, 'y':56.0 }
 proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         #corner['z0'] = 2.0
         #corner['z1'] = 5.0
         corner['t'] = 10
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
-                                                     num_h_scan_points = 2,
-                                                     num_v_scan_points = 2,
+                                                     num_h_scan_points = 3,
+                                                     num_v_scan_points = 4,
+                                                     just_corners = True,
                                                      verbosity = 1 )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
@@ -480,6 +509,8 @@ if __name__ == '__main__':
 
                                 # Assure that the last z-axis move was completed
                                 wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
+
+                                sleep(5)
                                 
                         completed_scans += 1
                         
