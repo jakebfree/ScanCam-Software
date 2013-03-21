@@ -497,10 +497,9 @@ if __name__ == '__main__':
                                 except:
                                         raise
 
-                                # Create video clip from raw frames
+                                # Create video clip from raw frames, -c arg specs clean up of raw files
                                 if verbose: print "Starting video compression."
-
-                                comp_command = "raw2h264 " + filename_base
+                                comp_command = "raw2h264 -c " + filename_base
 
                                 try:
                                         ret_val = os.system( comp_command )
