@@ -33,6 +33,7 @@ min_period_bt_scans = 1                 # in minutes
 
 verbose = True
 home_on_start = False
+just_one_scan = True
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -239,7 +240,7 @@ def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_hei
                                         xyz['t'] = corner['t']
 
                                 # Add cell identifier
-                                xyz['point-id'] = "%d-%d-%d" % ( corner_num, j, i)
+                                xyz['point-id'] = "%d-%d-%d" % ( corner_num, j+1, i+1)
                                 
                                 # We're done with that point, add it to the new scan
                                 xyz_scan.append( xyz )
@@ -331,7 +332,7 @@ for corner in proto_corners:
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
                                                      num_v_scan_points = 4,
-                                                     just_corners = True,
+                                                     #just_corners = True,
                                                      verbosity = 1 )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
@@ -510,9 +511,10 @@ if __name__ == '__main__':
                                 # Assure that the last z-axis move was completed
                                 wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
 
-                                sleep(5)
-                                
                         completed_scans += 1
+
+                        if( just_one_scan == True ):
+                                break
                         
         except KeyboardInterrupt:
                 print "Completed", completed_scans, "scans."
