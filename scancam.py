@@ -34,6 +34,7 @@ min_period_bt_scans = 1                 # in minutes
 verbose = True
 home_on_start = False
 just_one_scan = True
+skip_video = True
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -369,8 +370,8 @@ if __name__ == '__main__':
 
         # Create serial connection
         # TODO: handle exceptions
-        ser = serial_connection('/dev/ttyS1')
-
+        #ser = serial_connection('/dev/ttyS1')
+        ser = serial_connection('COM1')
 
 
         # Instantiate the axes
@@ -444,7 +445,7 @@ if __name__ == '__main__':
 
                                 # If there is a second z-axis value, start the move to it as we start the video clip
                                 # The clip will progress through the depth of the move
-                                if point.has_key('z1'):
+                                if point.has_key('z1') and not skip_video:
                                         # The move from z0 to z1 should take the same amount of time as the video clip duration
                                         # TODO check for divide by zero
                                         target_speed = abs(point['z1']-point['z0']) / float(point['t'])
@@ -486,11 +487,17 @@ if __name__ == '__main__':
                                 command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
                                 command += " " + filename_base
 
-                                # System call to camera
                                 if verbose: 
-                                        print "Sending camera command:", command
+                                        print "Camera command:", command
 
+                                if skip_video:
+                                        print "Skipping video. Sleeping 15 instead"
+                                        sleep(15)
+                                        continue
+                                
+                               # System call to camera
                                 try:
+                                        if verbose: print "System call to camera."
                                         os.system(command)
                                 except KeyboardInterrupt:
                                         raise        
