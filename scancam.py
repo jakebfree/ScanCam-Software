@@ -15,7 +15,11 @@ import os
 #
 #
 #
-#
+# There are three types of time values for a scan point.
+#       no 't' key:     Skip z1 move and all video calls. This may be used for intermediate
+#                       scan points that don't require video
+#       t = 0:          Place-holder for taking an image instead of video.
+#       t > 0:          Video clip duration. Also used to determine z-speed during move to z1
 #
 #
 #
@@ -26,8 +30,11 @@ import os
 
 
 
-MAX_STAGE_ACTION_TIMEOUT = 100                # in seconds
-DEFAULT_STAGE_ACTION_TIMEOUT = 50             # in seconds
+MAX_STAGE_ACTION_TIMEOUT = 100          # seconds
+DEFAULT_STAGE_ACTION_TIMEOUT = 50       # seconds
+MAX_CLIP_LENGTH = 60                    # seconds
+MAX_Z_MOVE_SPEED = 3.0                  # mm/second
+CAMERA_STARTUP_TIME = 0.0               # seconds
 
 min_period_bt_scans = 1                 # in minutes
 
@@ -332,7 +339,8 @@ proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         #corner['z0'] = 2.0
         #corner['z1'] = 5.0
-        corner['t'] = 10
+        corner['t'] = 0.1
+        #pass
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
                                                      num_v_scan_points = 4,
@@ -375,6 +383,8 @@ if __name__ == '__main__':
         # TODO: handle exceptions
         #ser = serial_connection('/dev/ttyS1')
         ser = serial_connection(comm_device)
+
+        # TODO Flush serial port and anything else necessary to have clean comm start
 
 
         # Instantiate the axes
@@ -438,7 +448,7 @@ if __name__ == '__main__':
          
                                         # Set z-axis speed to moderately fast value. It may have been set to a different
                                         # value during an image-through-depth sequence
-                                        z_stage.set_target_speed_in_units( 2.0, 'A-series' )
+                                        z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
                                         z_stage.step()
 
                                 # Step to next queued scan point for all axes
@@ -447,16 +457,36 @@ if __name__ == '__main__':
                                 wait_for_actions_to_complete( (x_stage, theta_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 #                                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
+                                # If this scan point has no time value, there is no video to record
+                                if not point.has_key('t'):
+                                        if verbose: print "Point has no time value. Skipping z1 and video"
+                                        continue
+                                
+                                clip_duration = int(point['t'])
+                                
                                 # If there is a second z-axis value, start the move to it as we start the video clip
-                                # The clip will progress through the depth of the move
-                                if point.has_key('z1') and not skip_video:
+                                # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
+                                if point.has_key('z1') and point['t'] != float(0.0):
                                         # The move from z0 to z1 should take the same amount of time as the video clip duration
-                                        # TODO check for divide by zero
-                                        target_speed = abs(point['z1']-point['z0']) / float(point['t'])
-                                        z_stage.set_target_speed_in_units( target_speed, 'A-series' )
+                                        # But, the camera may require a little warm-up time from system call to the first frame
+                                        # We'll add a small buffer of time to the z-axis move so that even if the move and clip
+                                        # don't start together, at least they will end together.
+                                        try:
+                                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
 
-                                        z_stage.move_absolute( point['z1'] )
-                                        z_stage.step()                
+                                                if target_z_speed > MAX_Z_MOVE_SPEED:
+                                                        # Calculate clip duration, rounding up to next int
+                                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
+                                                        print target_z_speed, "is to fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
+                                                                              "And extending clip duration to:", clip_duration
+                                                        target_z_speed = MAX_Z_MOVE_SPEED
+                                                # TODO: fix set_target_speed_in_units call to be type agnostic
+                                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
+
+                                                z_stage.move_absolute( point['z1'] )
+                                                z_stage.step()
+                                        except ZeroDivisionError:
+                                                print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
                                 
                                 # TODO: Looks like binned cropping is in terms of binned coordinates, but 
                                 # subsampled cropping is in terms of full sensor location (not subsampled) locations
@@ -487,7 +517,7 @@ if __name__ == '__main__':
                                         command += " -s " + str(subsampling)
                                 if binning:
                                         command += " -b " + str(binning)
-                                command += " -d " + str(point['t'])
+                                command += " -d " + str(clip_duration)
                                 command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
                                 command += " " + filename_base
 
@@ -495,8 +525,8 @@ if __name__ == '__main__':
                                         print "Camera command:", command
 
                                 if skip_video:
-                                        print "Skipping video. Sleeping 15 instead"
-                                        sleep(15)
+                                        print "Skipping video. Sleeping", clip_duration, "instead"
+                                        sleep(clip_duration)
                                         continue
                                 
                                # System call to camera
