@@ -35,6 +35,9 @@ verbose = True
 home_on_start = False
 just_one_scan = True
 skip_video = True
+verbose_for_coord_trans = False
+verbose_for_scan_build = False
+comm_device = "COM3"
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -334,7 +337,7 @@ proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
                                                      num_v_scan_points = 4,
                                                      #just_corners = True,
-                                                     verbosity = 1 )
+                                                     verbosity = verbose_for_scan_build )
 xyz_scan = proto_xyz_scan 
 #xyz_scan = model_xyz_scan
 
@@ -345,7 +348,7 @@ if __name__ == '__main__':
 
         # Convert from xyz coordinates to x-theta-z coord
         try:
-                xtz_scan = xyz_scan_2_xthetaz_scan( xyz_scan, verbosity = 1 )
+                xtz_scan = xyz_scan_2_xthetaz_scan( xyz_scan, verbosity = verbose_for_coord_trans )
         except SyntaxError:
                 print "Unable to translate xyz scan points to x-theta-z. Exiting."
                 sys.exit(0)
@@ -371,7 +374,7 @@ if __name__ == '__main__':
         # Create serial connection
         # TODO: handle exceptions
         #ser = serial_connection('/dev/ttyS1')
-        ser = serial_connection('COM1')
+        ser = serial_connection(comm_device)
 
 
         # Instantiate the axes
@@ -382,7 +385,7 @@ if __name__ == '__main__':
         theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
 
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
-        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+#        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
 
 
@@ -441,7 +444,8 @@ if __name__ == '__main__':
                                 # Step to next queued scan point for all axes
                                 x_stage.step()
                                 theta_stage.step()
-                                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+                                wait_for_actions_to_complete( (x_stage, theta_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+#                                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
 
                                 # If there is a second z-axis value, start the move to it as we start the video clip
                                 # The clip will progress through the depth of the move
