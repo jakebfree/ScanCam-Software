@@ -397,7 +397,7 @@ if __name__ == '__main__':
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
 #        z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-
+        stages = [ x_stage, theta_stage ]
 
         try:
                 # Open serial connection
@@ -411,13 +411,10 @@ if __name__ == '__main__':
                 
                 # Home all axes
                 if home_on_start:
-                        x_stage.home()
-                        theta_stage.home()
-                        z_stage.home()
-                        x_stage.step()
-                        theta_stage.step()
-                        z_stage.step()
-                        wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+                        for stage in stages:
+                                stage.home()
+                                stage.step()
+                        wait_for_actions_to_complete( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
 
                         
                 # Loop and continually scan with a timed periodicity
@@ -446,16 +443,15 @@ if __name__ == '__main__':
                                 if point.has_key('z0'):
                                         z_stage.move_absolute( point['z0'] )
          
-                                        # Set z-axis speed to moderately fast value. It may have been set to a different
-                                        # value during an image-through-depth sequence
+                                        # Set z-axis speed to standard moderately fast value. It may have been set to a
+                                        # different value during an image-through-depth sequence
                                         z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
                                         z_stage.step()
 
                                 # Step to next queued scan point for all axes
-                                x_stage.step()
-                                theta_stage.step()
-                                wait_for_actions_to_complete( (x_stage, theta_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
-#                                wait_for_actions_to_complete( (x_stage, theta_stage, z_stage), DEFAULT_STAGE_ACTION_TIMEOUT )
+                                for stage in stages:
+                                        stage.step()
+                                wait_for_actions_to_complete( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
 
                                 # If this scan point has no time value, there is no video to record
                                 if not point.has_key('t'):
