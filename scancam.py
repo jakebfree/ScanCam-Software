@@ -30,8 +30,7 @@ import os
 
 
 
-MAX_STAGE_ACTION_TIMEOUT = 100          # seconds
-DEFAULT_STAGE_ACTION_TIMEOUT = 50       # seconds
+DEFAULT_STAGE_ACTION_TIMEOUT = 10       # seconds
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 CAMERA_STARTUP_TIME = 0.0               # seconds
@@ -39,7 +38,7 @@ CAMERA_STARTUP_TIME = 0.0               # seconds
 min_period_bt_scans = 1                 # in minutes
 
 verbose = True
-home_on_start = False
+home_on_start = True
 just_one_scan = True
 skip_video = True
 verbose_for_coord_trans = False
@@ -56,9 +55,10 @@ def wait_for_devices_to_complete_actions(devices, timeout_secs):
         For each device in devices, wait until .in_action() returns False
         '''
         for device in devices:
-                device.wait_for_action_to_complete( timeout_secs )
-
-
+                try:
+                        device.wait_for_action_to_complete( timeout_secs )
+                except zaber_device.DeviceTimeoutError, device_id:
+                        raise
 
 def xtz2xyz( xtz, arm_length = 55.0 ):
         '''xthetaz2xyz( xtz )
@@ -400,8 +400,12 @@ if __name__ == '__main__':
                         for stage in stages:
                                 stage.home()
                                 stage.step()
-                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
 
+                        try:
+                                wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                print "Device", device_id, "timed out during intial homing"
+                                raise
                         
                 # Loop and continually scan with a timed periodicity
                 completed_scans = 0
@@ -438,7 +442,11 @@ if __name__ == '__main__':
                                 # Step to next queued scan point for all axes
                                 for stage in stages:
                                         stage.step()
-                                wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                                try:
+                                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                                except zaber_device.DeviceTimeoutError, device_id:
+                                        print "Device", device_id, "timed out during move for scan point", scan_point_num
+                                        raise
 
                                 # If this scan point has no time value, there is no video to record
                                 if not point.has_key('t'):
@@ -532,7 +540,11 @@ if __name__ == '__main__':
                                 if verbose: print "Return val from compression was", ret_val
 
                                 # Assure that the last z-axis move was completed
-                                z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
+                                try:
+                                        z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
+                                except zaber_device.DeviceTimeoutError, device_id:
+                                        print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                                        raise
 
                         completed_scans += 1
 
