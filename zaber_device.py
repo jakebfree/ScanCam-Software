@@ -1,6 +1,7 @@
 from warnings import warn
 from serial_connection import *
 from Queue import Queue
+from time import sleep
 import signal
 
 CONTINUOUS, STEP = (0,1)
@@ -570,6 +571,37 @@ class device_base():
                 return -1
             
             self.handle_device_packet(source, command, data) 
+
+
+    class DeviceTimeoutError(Exception):
+        pass
+
+
+
+    def wait_for_action_to_complete(self, timeout_secs):
+        '''wait_for_action_to_complete(devices, timeout_secs)
+
+        Wake up once a second to see if current action has completed
+
+        Raises self.DeviceTimeoutError exception after waiting for timeout_secs
+        seconds without self.in_action() returning false.
+        '''
+            
+        counter = 0
+        while (1):
+            sleep(1)
+            counter += 1
+
+            if not self.in_action():
+                break
+
+            if counter >= timeout_secs:
+                    print self.id, "timeout after %d secs" % counter
+                    # TODO: Send stop signal in case we have a ridiculously low speed and it hasn't got there yet
+                    raise self.DeviceTimeoutError
+                    break
+
+
 
 class zaber_device(device_base):
     ''' zaber_device(connection, 
