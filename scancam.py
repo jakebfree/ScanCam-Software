@@ -50,26 +50,13 @@ video_location = "/home/freemajb/data/scancam_proto_videos/"
 
 
 
-def wait_for_actions_to_complete( devices, timeout_secs ):
-        if timeout_secs > MAX_STAGE_ACTION_TIMEOUT:
-                #TODO: raise Exception
-                return
-        
-        counter = 0
-        while (1):
-                devices_in_action = []
-                for device in devices:
-                        if device.in_action():
-                                devices_in_action.append( device.get_id() )
-                if not devices_in_action:
-                        break
+def wait_for_devices_to_complete_actions(devices, timeout_secs):
+        '''wait_for_devices_to_complete_actions(devices, timeout_secs)
 
-                sleep(1)
-                counter += 1
-                if counter > timeout_secs:
-                        print "Wait for actions to complete: timeout after %d secs" % counter
-                        # TODO: Send stop signal in case we have a ridiculously low speed and it hasn't got there yet
-                        break
+        For each device in devices, wait until .in_action() returns False
+        '''
+        for device in devices:
+                device.wait_for_action_to_complete( timeout_secs )
 
 
 
@@ -339,7 +326,7 @@ proto_corners = generate_six_well_xy_corners( proto_home )
 for corner in proto_corners:
         #corner['z0'] = 2.0
         #corner['z1'] = 5.0
-        corner['t'] = 0.1
+        corner['t'] = 10
         #pass
 proto_xyz_scan = build_xyz_scan_from_target_corners( proto_corners,
                                                      num_h_scan_points = 3,
@@ -381,7 +368,6 @@ if __name__ == '__main__':
 
         # Create serial connection
         # TODO: handle exceptions
-        #ser = serial_connection('/dev/ttyS1')
         ser = serial_connection(comm_device)
 
         # TODO Flush serial port and anything else necessary to have clean comm start
@@ -414,7 +400,7 @@ if __name__ == '__main__':
                         for stage in stages:
                                 stage.home()
                                 stage.step()
-                        wait_for_actions_to_complete( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
 
                         
                 # Loop and continually scan with a timed periodicity
@@ -438,6 +424,7 @@ if __name__ == '__main__':
                                 if verbose: print "Step", scan_point_num, point
 
                                 # Enqueue scan point move commands
+                                #x_stage.set_target_speed_in_units( 6.0 )
                                 x_stage.move_absolute( point['x'] )
                                 theta_stage.move_absolute( point['theta'] )
                                 if point.has_key('z0'):
@@ -451,7 +438,7 @@ if __name__ == '__main__':
                                 # Step to next queued scan point for all axes
                                 for stage in stages:
                                         stage.step()
-                                wait_for_actions_to_complete( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                                wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
 
                                 # If this scan point has no time value, there is no video to record
                                 if not point.has_key('t'):
@@ -545,7 +532,7 @@ if __name__ == '__main__':
                                 if verbose: print "Return val from compression was", ret_val
 
                                 # Assure that the last z-axis move was completed
-                                wait_for_actions_to_complete( (z_stage,), DEFAULT_STAGE_ACTION_TIMEOUT )
+                                z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
 
                         completed_scans += 1
 
