@@ -574,12 +574,15 @@ class device_base():
 
 
     class DeviceTimeoutError(Exception):
-        pass
+        def __init__(self, device_id):
+            self.device_id = device_id
+        def __str__(self):
+            return repr(self.device_id)
 
 
 
     def wait_for_action_to_complete(self, timeout_secs):
-        '''wait_for_action_to_complete(devices, timeout_secs)
+        '''wait_for_actions_to_complete(devices, timeout_secs)
 
         Wake up once a second to see if current action has completed
 
@@ -597,9 +600,7 @@ class device_base():
 
             if counter >= timeout_secs:
                     print self.id, "timeout after %d secs" % counter
-                    # TODO: Send stop signal in case we have a ridiculously low speed and it hasn't got there yet
-                    raise self.DeviceTimeoutError
-                    break
+                    raise self.DeviceTimeoutError( self.id )
 
 
 
