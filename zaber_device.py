@@ -14,14 +14,19 @@ CONTINUOUS, STEP = (0,1)
 base_commands = {
         'reset':                    0,
         'home':                     1,
-        'renumber':                 2 ,
+        'renumber':                 2,
         'store_current_position':   16,
         'return_stored_position':   17,
         'read_or_write_memory':     35,
         'restore_settings':         36,
+        'return_device_id':         50,
         'return_setting':           53,
         'echo_data':                55,
         'return_current_position':  60,
+        }
+
+stop_commands = {
+        'stop':                     23,
         }
 
 move_commands = {
@@ -29,7 +34,6 @@ move_commands = {
         'absolute':                 20,
         'relative':                 21,
         'constant_speed':           22,
-        'stop':                     23,
         }
 
 setting_commands = {
@@ -91,6 +95,7 @@ class device_base():
         # These have to be initialised immediately to prevent a potential infinite
         # recursion when the attribute handler can't find them.
         self.base_commands = {}
+        self.stop_commands = {}
         self.meta_commands = {}
         self.user_meta_commands = {}
         self.setting_commands = {}
@@ -133,6 +138,7 @@ class device_base():
         self.command_lookup = {}
         self.move_lookup = {}
         self.extra_error_codes_lookup = {}
+        self.stop_lookup = {}
 
     def __getattr__(self, attr):
         
@@ -141,6 +147,12 @@ class device_base():
                 return self.enqueue_base_command(attr, data)
 
             return base_function
+
+        if self.stop_commands.has_key(attr):
+            def stop_function(data = 0):
+                return self.do_stop_command(attr, data)
+
+            return stop_function
 
         elif attr[0:5] == 'move_' and self.move_commands.has_key(attr[5:]):
             def move_function(data = 0):
@@ -288,6 +300,16 @@ class device_base():
 
         return None
     
+    def do_stop_command(self, command, data = 0, blocking = False):
+        ''' device_base.get(command, data = 0, blocking = False)
+        
+        Exit quietly. This attribute should be overwritten in child classes.
+
+        '''
+
+        self.do_now(stop_commands[command], data = data, pause_after = True, \
+                    blocking = blocking, release_command = None)
+
     def get(self, setting, blocking = False):
         ''' device_base.get(setting, blocking = False)
         
@@ -651,6 +673,7 @@ class zaber_device(device_base):
         # These have to be initialised immediately to prevent a potential infinite
         # recursion when the attribute handler can't find them.
         self.base_commands = base_commands
+        self.stop_commands = stop_commands
         self.move_commands = move_commands
         self.meta_commands = {}
         self.user_meta_commands = {}
@@ -679,6 +702,7 @@ class zaber_device(device_base):
         self.connection.register_device(self.id, self.device_number)
 
         self.base_commands = base_commands
+        self.stop_commands = stop_commands
         self.move_commands = move_commands
         self.extra_error_codes = extra_error_codes
         self.meta_commands = {}
@@ -698,6 +722,9 @@ class zaber_device(device_base):
         
         for each_command in self.base_commands:
             self.command_lookup[self.base_commands[each_command]] = each_command
+    
+        for each_command in self.stop_commands:
+            self.stop_lookup[self.stop_commands[each_command]] = each_command
     
         for each_movement in self.move_commands:
             self.move_lookup[self.move_commands[each_movement]] = each_movement
@@ -843,8 +870,18 @@ class zaber_device(device_base):
         command_tuple = (self.device_number, command, data)
 
         apply(self.connection.send_command, command_tuple)
+
+        #
+        if self.stop_lookup.has_key(command):
+            self.action_state = False
+            # If we are already in a move, the stop response "replaces" the move response
+            if not self.in_action():
+                self.pending_responses = self.pending_responses + 1
+            if self.verbose:
+                print "send:      %s, do %s (%i): %i" \
+                            %(self.id, self.stop_lookup[command], command, data)
         
-        if self.in_action() and self.move_lookup.has_key(command):
+        elif self.in_action() and self.move_lookup.has_key(command):
             # This means the current command will preempt a previously sent command,
             # so we shouldn't do anything.
             if self.verbose:
@@ -949,6 +986,13 @@ class zaber_device(device_base):
             if self.verbose:
                 print 'received:  %s, command %s (%i): %i' \
                         %(self.id, self.command_lookup[command], command, data)
+
+        elif self.stop_lookup.has_key(command):
+            self.pending_responses = self.pending_responses - 1
+            
+            if self.verbose:
+                print 'received:  %s, command %s (%i): %i' \
+                        %(self.id, self.stop_lookup[command], command, data)
 
         elif self.move_lookup.has_key(command):
             self.pending_responses = self.pending_responses - 1
