@@ -54,11 +54,14 @@ def wait_for_devices_to_complete_actions(devices, timeout_secs):
 
         For each device in devices, wait until .in_action() returns False
         '''
-        for device in devices:
-                try:
+        try:
+                for device in devices:
                         device.wait_for_action_to_complete( timeout_secs )
-                except zaber_device.DeviceTimeoutError, device_id:
-                        raise
+        except zaber_device.DeviceTimeoutError, device_id:
+                # If one device times out, stop all of them
+                for device in devices:
+                        device.stop()
+                raise
 
 def xtz2xyz( xtz, arm_length = 55.0 ):
         '''xthetaz2xyz( xtz )
