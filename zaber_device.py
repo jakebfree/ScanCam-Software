@@ -621,7 +621,7 @@ class device_base():
                 break
 
             if counter >= timeout_secs:
-                    print self.id, "timeout after %d secs" % counter
+                    if self.verbose: print self.id, "timeout after %d secs. Raising exception" % counter
                     raise self.DeviceTimeoutError( self.id )
 
 

@@ -30,7 +30,7 @@ import os
 
 
 
-DEFAULT_STAGE_ACTION_TIMEOUT = 10       # seconds
+DEFAULT_STAGE_ACTION_TIMEOUT = 60       # seconds
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 CAMERA_STARTUP_TIME = 0.0               # seconds
@@ -555,7 +555,10 @@ if __name__ == '__main__':
                 print "Completed", completed_scans, "scans."
 
 
-        finally:            
+        finally:
+                for stage in stages:
+                        stage.stop
+
                 # Close serial connection before final exit
                 print "Closing serial connection"
                 ser.close()
