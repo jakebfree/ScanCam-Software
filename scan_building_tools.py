@@ -7,6 +7,9 @@ import math
 # Each scan is a sequential list of dictionaries, each of which represents a single
 # scan point. Each point must minimally include 'x' and 'y' or 'X' and 'theta' keys.
 #
+# In order to differentiate between the cartesian and specialized rotary coordinates
+# a lower case 'x' is used for cartesian and an uppercase 'X' for the rotary.
+#
 # The scans are generally first created in standard cartesian coordinates (x, y)
 # for familiarity and ease, but the ScanCam is implemented with a rotary axis so they
 # must be transformed into X-theta coordinates before commanding the devices.
@@ -38,17 +41,15 @@ verbose_for_scan_build = False
 
 
 
-def xtz2xyz( xtz, arm_length = 55.0 ):
-        '''xthetaz2xyz( xtz )
+def xtz2xyz(xtz, arm_length = 55.0):
+        '''xthetaz2xyz( xtz, arm_length = 55.0 )
 
-        Convert a {'x':<>, 'theta':<> } point to a { 'x':<> 'y':<>} point
+        Convert a {'X':<>, 'theta':<> } point to a { 'x':<> 'y':<>} point
         If the passed dict has z0, z1, and/or t keys, the values are copied over
         '''
         
-        print "xtz =", xtz
-
         xyz = {}
-        xyz['x'] = xtz['x'] - math.sin( math.acoshradians(xtz['theta']) ) * arm_length
+        xyz['x'] = xtz['X'] - math.sin( math.radians(xtz['theta']) ) * arm_length
         xyz['y'] = -math.cos( math.radians(xtz['theta']) ) * arm_length
 
         # TODO: make generic for non x,y,theta keys
@@ -125,7 +126,7 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 
                 
                 # Put x-theta coord in scan list
                 # TODO: make generic for non x,y,theta 
-                xtz = { 'x': X, 'theta': theta }
+                xtz = { 'X': X, 'theta': theta }
                 if xyz.has_key('z0'):
                         xyz['z0'] = xyz['z0']
                 if xyz.has_key('z1'):
@@ -260,18 +261,16 @@ def generate_six_well_xy_corners( top_left_corner ):
 
 
 # Temporary x--theta scan for testing
-xtz_keys = ( 'x', 'theta', 'z', 't' )
+xtz_keys = ( 'X', 'theta', 'z', 't' )
 arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
 arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 40, 90, 4, 0 ))) ]
 arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
-
-xyz_keys = ( 'x', 'y', 'z0', 'z1', 't' )
-
 
 
 
 # Place-holding xyz scan matrix for basic testing
 # all numbers in mm
+xyz_keys = ( 'x', 'y', 'z0', 'z1', 't' )
 arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 1, 4, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 6, 0, 0 ))) ]
 arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 1, 4, 0 ))) ]

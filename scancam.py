@@ -29,12 +29,12 @@ MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 CAMERA_STARTUP_TIME = 0.0               # seconds
 
 min_period_bt_scans = 1                 # in minutes
-
 verbose = True
 home_on_start = True
 just_one_scan = True
 skip_video = True
 comm_device = "COM3"
+scan_filename = "/etc/
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -70,6 +70,8 @@ def wait_for_devices_to_complete_actions(devices, timeout_secs):
 
 if __name__ == '__main__':
 
+        # open file and unpickle the scan
+
         # Convert from xyz coordinates to x-theta-z coord
         try:
                 xtz_scan = xyz_scan_2_xthetaz_scan( xyz_scan, verbosity = verbose_for_coord_trans )
@@ -81,15 +83,13 @@ if __name__ == '__main__':
         # parse arguments
         # scancam [OPTION]... [SCANFILE]...
         #
-        # -p, --min-period in minutes
+        # -p, --minimum-period in minutes
 
 
-
-        # open file and unpickle the scan
 
         # scan is a list of scanpoints represented as dictionaries with the keys:
         #	x	x-axis target location in mm
-        #	theta	rotarty stage target location in deg
+        #	theta	rotary stage target location in deg
         #	z	z-axis target location in mm
         #	t	time in seconds to record video
 
@@ -114,6 +114,7 @@ if __name__ == '__main__':
 
         stages = [ x_stage, theta_stage ]
 
+        # Put everything in try statement so that we can finally close the serial port on any error
         try:
                 # Open serial connection
                 print "Opening serial connection in thread"
@@ -149,7 +150,7 @@ if __name__ == '__main__':
                         
                                
                         # Walk through scan
-                        print "Starting scan number", completed_scans + 1
+                        if verbose: print "Starting scan number", completed_scans + 1
                         scan_point_num = 0
                         for point in xtz_scan:
 
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
                                 # Enqueue scan point move commands
                                 #x_stage.set_target_speed_in_units( 6.0 )
-                                x_stage.move_absolute( point['x'] )
+                                x_stage.move_absolute( point['X'] )
                                 theta_stage.move_absolute( point['theta'] )
                                 if point.has_key('z0'):
                                         z_stage.move_absolute( point['z0'] )
