@@ -45,7 +45,7 @@ except KeyboardInterrupt:
 
 
 finally:            
-    #scancam.stop()
+    scancam.stop()
         
     # Close serial connection before final exit
     print "Closing serial connection"
