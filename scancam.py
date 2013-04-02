@@ -31,7 +31,7 @@ CAMERA_STARTUP_TIME = 0.0               # seconds
 
 min_period_bt_scans = 1                 # in minutes
 verbose = True
-home_on_start = True
+home_on_start = False
 just_one_scan = True
 skip_video = True
 comm_device = "COM3"
@@ -454,6 +454,30 @@ class scancam_base():
                 '''
                 return "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
                 
+        def stop_stages(self):
+                '''scancam_base.stop_stages()
+
+                Send stop command to all stages.
+                '''
+                for stage in stages:
+                        stages[stage].do_stop_command()
+
+
+        def home(self):
+                '''scancam_base.home()
+
+                Send home command to all stages and wait to complete
+                '''
+                for stage in stages:
+                        self.stages[stage].home()
+                        self.stages[stage].step()
+
+                try:
+                        self.wait_for_stages_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                except zaber_device.DeviceTimeoutError, device_id:
+                        print "Device", device_id, "timed out during intial homing"
+                        raise
+
 
 class xthetaz_scancam(scancam_base):
         '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0,
@@ -486,7 +510,7 @@ class xthetaz_scancam(scancam_base):
                 xtz_stages = {}
                 xtz_stages['X'] = stages[0]
                 xtz_stages['theta'] = stages[1]
-                xtz_stages['z'] = stages[2]
+                #xtz_stages['z'] = stages[2]
 
                 scancam_base.__init__(self, xtz_stages)
 
@@ -741,7 +765,7 @@ if __name__ == '__main__':
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
         #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-        stages = [ x_stage, theta_stage ]
+        scancam = xthetaz_scancam([ x_stage, theta_stage ])
 
         # Put everything in try statement so that we can finally close the serial port on any error
         try:
@@ -753,19 +777,9 @@ if __name__ == '__main__':
                 # TODO: Send command to reset stages to defaults
                 # TODO: Read in the default target speed for z so we can use it for z0 moves
 
-                
-                # Home all axes
                 if home_on_start:
-                        for stage in stages:
-                                stage.home()
-                                stage.step()
-
-                        try:
-                                wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
-                        except zaber_device.DeviceTimeoutError, device_id:
-                                print "Device", device_id, "timed out during intial homing"
-                                raise
-                        
+                        scancam.home()
+                                                        
                 # Loop and continually scan with a timed periodicity
                 completed_scans = 0
                 last_scan_start_time = 0
@@ -775,12 +789,13 @@ if __name__ == '__main__':
                         if time() <= last_scan_start_time + min_period_bt_scans*60.0:
                                 sleep(1)
                                 continue
+                        # TODO: Handle start time of scans that error out
                         last_scan_start_time = time()
                         
                                
                         # Walk through scan
                         if verbose: print "Starting scan number", completed_scans + 1
-                        scan_action(xyz_scan, verbosity=verbose)
+                        scancam.scan_action(xyz_scan, verbosity=verbose)
   
                         completed_scans += 1
 
@@ -792,9 +807,9 @@ if __name__ == '__main__':
 
 
         finally:
-                for stage in stages:
-                        stage.stop
-
+                # Send stop command to all devices
+                scancam.stop()
+                
                 # Close serial connection before final exit
                 print "Closing serial connection"
                 ser.close()
