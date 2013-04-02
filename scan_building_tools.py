@@ -145,8 +145,8 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 
 
 def build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
                                         num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbosity = 0):
-        '''build_xyz_scan_from_target_corners( corners, well_width, well_height, num_h_scan_points, num_v_scan_points )
-
+        '''build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
+                        num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbosity = 0)
         Builds an xyz scan of points across a list of equally sized rectangular targets.
 
         The scan begins in the top-left corner of the first target and scans across and down it
@@ -256,7 +256,6 @@ def generate_six_well_xy_corners( top_left_corner ):
                 corners.append( corner )
 
         return corners
-                                                                               
 
 
 
