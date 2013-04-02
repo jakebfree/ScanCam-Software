@@ -35,15 +35,11 @@ home_on_start = True
 just_one_scan = True
 skip_video = True
 comm_device = "COM3"
-scan_filename = "/etc/
+scan_filename = "/etc/"
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
 
-
-# HACK to set the scan before we import from file
-xyz_scan = proto_xyz_scan 
-#xyz_scan = model_xyz_scan
 
 
 
@@ -281,6 +277,8 @@ class six_well_scan(scan_base):
                         scanpoint['t'] = clip_duration
 
 
+
+
 class six_well_just_corners_scan(scan_base):
         '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbosity=False)
 
@@ -406,37 +404,112 @@ proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
                           verbosity = verbose_for_scan_build )
 
 
+# HACK to set the scan before we import from file
+xyz_scan = proto_scan 
+#xyz_scan = model_xyz_scan
 
 
-def wait_for_devices_to_complete_actions(devices, timeout_secs):
-        '''wait_for_devices_to_complete_actions(devices, timeout_secs)
 
-        For each device in devices, wait until .in_action() returns False
+################################################################################
+
+
+
+class scancam_base():
+        '''scancam_base(self, stages)
+
+        Base class for scacncams.
+
+        stages:         Dictionary of zaber_devices that comprise the scancam.
+                        The keys are the axis identifiers. (e.g. 'X', 'theta',
+                        'z')
         '''
-        try:
-                for device in devices:
-                        device.wait_for_action_to_complete( timeout_secs )
-        except zaber_device.DeviceTimeoutError, device_id:
-                # If one device times out, stop all of them
-                for device in devices:
-                        device.stop()
-                raise
 
 
+        def __init__(self, stages):
 
-def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 176.0, verbosity = 0 ):
+                self.stages = stages
+
+
+        def wait_for_stages_to_complete_actions(timeout_secs):
+                '''scancam_base.wait_for_stages_to_complete_actions(timeout_secs)
+
+                For each scancam stage, wait until .in_action() returns False
+                '''
+                try:
+                        for stage in stages:
+                                stage.wait_for_action_to_complete( timeout_secs )
+                except zaber_device.DeviceTimeoutError, stage_id:
+                        # If one device times out, stop all of them
+                        for stage in stages:
+                                stage.stop()
+                        raise
+
+        def build_timestring(self, time):
+                '''scancam_base.build_timestring(time)
+
+                Build timestring in the format:
+                        YYYY-MM-DD_HH-MM-SS
+
+                time:   Time value in seconds past the epoch
+                '''
+                return "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+                
+
+class xthetaz_scancam(scancam_base):
+        '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0,
+
+        Scancam with 200mm x-axis, rotary stage, and 10mm z-axis. The z-axis and
+        camera are mounted to the rotary axis and can swing around to where the
+        camera nearly collides with the floor of CGBA. The camera FOV rotates
+        with the stage.
+
+        stages:         List of the three zaber devices that comprise the scancam
+                        hardware. Constructor uses the Zaber device hardware ids
+                        to assign stage identifiers.
+
+        arm_length:     Distance between the axis of rotation and the camera
+                        viewing axis. Is used to translate between the x,y coord
+                        spec'd in a scan and the required X and theta commands
+
+        min_X:          Minimum acceptable setting for the X-axis.
+
+        max_X:          Maximum acceptable setting for the X-axis.
         '''
-        xyz2xtz ( xyz_scan, arm_length, min_X, max_X )
 
-        Use physical geometry to translate from a cartesian xyz coord scan to the one
-        described by the x, theta, z where theta is the angle of the rotary axis
-        '''
-        
-        xthetaz_scan = []
-        used_negative_last_time = False
-        for xyz in xyz_scan:
-                x = xyz['x']
-                y = xyz['y']
+        def __init__(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0):
+
+                self.arm_length = arm_length
+                self.min_X = min_X
+                self.max_X = max_X
+
+                # TODO: Import hardware id to stage id mapping and use to build stage dict
+                xtz_stages = {}
+                xtz_stages['X'] = stages[0]
+                xtz_stages['theta'] = stages[1]
+                xtz_stages['z'] = stages[2]
+
+                scancam_base.__init__(self, xtz_stages)
+
+                self.used_negative_of_angle_last_time = False                
+
+
+        def xy2xtheta(self, xy_point, verbosity = 0):
+                '''xthetaz_scancam.xy2xtheta(xy_point, verbosity = 0)
+
+                Use physical geometry of the scancam to translate from a
+                cartesian xy coord point (in mm) to the one implemented by our
+                X-theta hardware where X is the X-stage setting in mm and theta
+                is the rotary axis setting in degrees.
+
+                xy_point:       Dictionary containing the x and y values for the
+                                scan point. Only the 'x' and 'y' keys are used
+                                by this functions, but other may be included.
+
+                verbosity:      Verbosity
+                '''
+                
+                x = xy_point['x']
+                y = xy_point['y']
 
                 # Calculate X-theta Coordinates
                 # There are regions (closer to X=0) where the arm can't swing to the correct y value
@@ -450,7 +523,7 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 
                 # when it doesn't have to, it first tries using the same type of angle (acos or its
                 # negative) that it did last time in order to avoid unnecessary swings.
                 past_reach = False
-                if not used_negative_last_time:
+                if not used_negative_of_angle_last_time:
                         try:
                                 theta = math.degrees( math.acos( float(-y)/float(arm_length) ))
                         except ValueError:
@@ -475,162 +548,151 @@ def xyz_scan_2_xthetaz_scan ( xyz_scan, arm_length = 52.5, min_X = 0.0, max_X = 
                 # If the calculated X is out of bounds, swing theta to its negative (which could be back
                 # to the natural acos)
                 if X < min_X or X > max_X:
-                        used_negative_last_time = not used_negative_last_time
+                        self.used_negative_of_angle_last_time = not self.used_negative_of_angle_last_time
                         theta = 360 - theta     
                         X = x - arm_length * math.sin( math.radians( theta ) )
 
                 # If X is still out of bounds, it must be unachievable. Raise exception
+                # TODO: Switch to user defined exception
                 if X < min_X or X > max_X:
                         print "Unable to translate (%f, %f) to X-theta coordinates." % (x,y)
                         print "Calculated X value of %f is out of range." % X
                         raise SyntaxError
                 
                 # Put x-theta coord in scan list
-                # TODO: make generic for non x,y,theta 
-                xtz = { 'X': X, 'theta': theta }
-                if xyz.has_key('z0'):
-                        xyz['z0'] = xyz['z0']
-                if xyz.has_key('z1'):
-                        xtz['z1'] = xyz['z1']   
-                if xyz.has_key('t'):
-                        xtz['t'] = xyz['t']
-                if xyz.has_key('point-id'):
-                        xtz['point-id'] = xyz['point-id']
-                xthetaz_scan.append( xtz )
-                if verbosity: print "Converted to", xtz, "from", xyz 
+                x_theta_point = { 'X': X, 'theta': theta }
+                if verbosity: print "Converted to", x_theta_point, "from", xy_point 
 
-        return xthetaz_scan
+                return x_theta_point
 
 
+        def scan_action(self, xyz_scan, verbosity):
 
+                scan_point_num = 0
+                for point in xyz_scan.scanpoints:
 
+                        scan_point_num += 1
+                        if verbose: print "Step", scan_point_num, point
 
-def scan_action(xyz_scan, verbosity):
+                        # Enqueue scan point move commands
+                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
+                        # TODO: handle exceptions with coord trans
+                        x_theta_point = xy2xtheta(point)
+                        x_stage.move_absolute( x_theta_point['X'] )
+                        theta_stage.move_absolute( x_theta_point['theta'] )
+                        if point.has_key('z0'):
+                                z_stage.move_absolute( point['z0'] )
 
-        scan_point_num = 0
-        for point in xtz_scan:
-
-                scan_point_num += 1
-                if verbose: print "Step", scan_point_num, point
-
-                # Enqueue scan point move commands
-                #x_stage.set_target_speed_in_units( 6.0 )
-                x_stage.move_absolute( point['X'] )
-                theta_stage.move_absolute( point['theta'] )
-                if point.has_key('z0'):
-                        z_stage.move_absolute( point['z0'] )
-
-                        # Set z-axis speed to standard moderately fast value. It may have been set to a
-                        # different value during an image-through-depth sequence
-                        z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
-                        z_stage.step()
-
-                # Step to next queued scan point for all axes
-                for stage in stages:
-                        stage.step()
-                try:
-                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
-                except zaber_device.DeviceTimeoutError, device_id:
-                        print "Device", device_id, "timed out during move for scan point", scan_point_num
-                        raise
-
-                # If this scan point has no time value, there is no video to record
-                if not point.has_key('t'):
-                        if verbose: print "Point has no time value. Skipping z1 and video"
-                        continue
-                
-                clip_duration = int(point['t'])
-                
-                # If there is a second z-axis value, start the move to it as we start the video clip
-                # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
-                if point.has_key('z1') and point['t'] != float(0.0):
-                        # The move from z0 to z1 should take the same amount of time as the video clip duration
-                        # But, the camera may require a little warm-up time from system call to the first frame
-                        # We'll add a small buffer of time to the z-axis move so that even if the move and clip
-                        # don't start together, at least they will end together.
-                        try:
-                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
-
-                                if target_z_speed > MAX_Z_MOVE_SPEED:
-                                        # Calculate clip duration, rounding up to next int
-                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
-                                        print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
-                                                              "And extending clip duration to:", clip_duration
-                                        target_z_speed = MAX_Z_MOVE_SPEED
-                                # TODO: fix set_target_speed_in_units call to be type agnostic
-                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
-
-                                z_stage.move_absolute( point['z1'] )
+                                # Set z-axis speed to standard moderately fast value. It may have been set to a
+                                # different value during an image-through-depth sequence
+                                z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
                                 z_stage.step()
-                        except ZeroDivisionError:
-                                print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
-                
-                # TODO: Looks like binned cropping is in terms of binned coordinates, but 
-                # subsampled cropping is in terms of full sensor location (not subsampled) locations
-                # verify and handle appropriately
-                
-                # Start raw video recording
-                camera_id = 1
-                subsampling = 3
-                binning = 0
-                x0 = 320
-                x1 = 2240
-                y0 = 0
-                y1 = 1920
 
-                # Build video file target basename in the format:
-                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
-                t = gmtime( time() )
-                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
-                if point.has_key('point-id'):
-                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
-                else:
-                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+                        # Step to next queued scan point for all axes
+                        for stage in self.stages:
+                                stage.step()
+                        try:
+                                self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                print "Device", device_id, "timed out during move for scan point", scan_point_num
+                                raise
 
-                # Build camera command
-                command = "idscam video --id " + str(camera_id)
-                
-                if subsampling:
-                        command += " -s " + str(subsampling)
-                if binning:
-                        command += " -b " + str(binning)
-                command += " -d " + str(clip_duration)
-                command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
-                command += " " + filename_base
+                        # If this scan point has no time value, there is no video to record
+                        if not point.has_key('t'):
+                                if verbose: print "Point has no time value. Skipping z1 and video"
+                                continue
+                        
+                        clip_duration = int(point['t'])
+                        
+                        # If there is a second z-axis value, start the move to it as we start the video clip
+                        # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
+                        if point.has_key('z1') and point['t'] != float(0.0):
+                                # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                # But, the camera may require a little warm-up time from system call to the first frame
+                                # We'll add a small buffer of time to the z-axis move so that even if the move and clip
+                                # don't start together, at least they will end together.
+                                try:
+                                        target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
 
-                if verbose: 
-                        print "Camera command:", command
+                                        if target_z_speed > MAX_Z_MOVE_SPEED:
+                                                # Calculate clip duration, rounding up to next int
+                                                clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
+                                                print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
+                                                                      "And extending clip duration to:", clip_duration
+                                                target_z_speed = MAX_Z_MOVE_SPEED
+                                        # TODO: fix set_target_speed_in_units call to be type agnostic
+                                        z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
 
-                if skip_video:
-                        print "Skipping video. Sleeping", clip_duration, "instead"
-                        sleep(clip_duration)
-                        continue
-                
-               # System call to camera
-                try:
-                        if verbose: print "System call to camera."
-                        os.system(command)
-                except KeyboardInterrupt:
-                        raise        
-                except:
-                        raise
+                                        z_stage.move_absolute( point['z1'] )
+                                        z_stage.step()
+                                except ZeroDivisionError:
+                                        print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
+                        
+                        # TODO: Looks like binned cropping is in terms of binned coordinates, but 
+                        # subsampled cropping is in terms of full sensor location (not subsampled) locations
+                        # verify and handle appropriately
+                        
+                        # Start raw video recording
+                        camera_id = 1
+                        subsampling = 3
+                        binning = 0
+                        x0 = 320
+                        x1 = 2240
+                        y0 = 0
+                        y1 = 1920
 
-                # Create video clip from raw frames, -c arg specs clean up of raw files
-                if verbose: print "Starting video compression."
-                comp_command = "raw2h264 -c " + filename_base
+                        # Build video file target basename in the format:
+                        #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
+                        t_str = self.build_timestring( gmtime(time()) )
+                        if point.has_key('point-id'):
+                                filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                        else:
+                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
 
-                try:
-                        ret_val = os.system( comp_command )
-                except:
-                        raise
-                if verbose: print "Return val from compression was", ret_val
+                        # Build camera command
+                        command = "idscam video --id " + str(camera_id)
+                        
+                        if subsampling:
+                                command += " -s " + str(subsampling)
+                        if binning:
+                                command += " -b " + str(binning)
+                        command += " -d " + str(clip_duration)
+                        command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
+                        command += " " + filename_base
 
-                # Assure that the last z-axis move was completed
-                try:
-                        z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
-                except zaber_device.DeviceTimeoutError, device_id:
-                        print "Device", device_id, "timed out during second z move on scan point", scan_point_num
-                        raise
+                        if verbose: 
+                                print "Camera command:", command
+
+                        if skip_video:
+                                print "Skipping video. Sleeping", clip_duration, "instead"
+                                sleep(clip_duration)
+                                continue
+                        
+                       # System call to camera
+                        try:
+                                if verbose: print "System call to camera."
+                                os.system(command)
+                        except KeyboardInterrupt:
+                                raise        
+                        except:
+                                raise
+
+                        # Create video clip from raw frames, -c arg specs clean up of raw files
+                        if verbose: print "Starting video compression."
+                        comp_command = "raw2h264 -c " + filename_base
+
+                        try:
+                                ret_val = os.system( comp_command )
+                        except:
+                                raise
+                        if verbose: print "Return val from compression was", ret_val
+
+                        # Assure that the last z-axis move was completed
+                        try:
+                                z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                                raise
 
 
 
@@ -646,14 +708,6 @@ arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
 if __name__ == '__main__':
 
         # open file and unpickle the scan
-
-        # Convert from xyz coordinates to x-theta-z coord
-        try:
-                xtz_scan = xyz_scan_2_xthetaz_scan( xyz_scan, verbosity = verbose_for_coord_trans )
-        except SyntaxError:
-                print "Unable to translate xyz scan points to x-theta-z. Exiting."
-                sys.exit(0)
-
 
         # parse arguments
         # scancam [OPTION]... [SCANFILE]...
