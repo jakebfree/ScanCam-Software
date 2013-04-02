@@ -303,7 +303,7 @@ class device_base():
     def do_stop_command(self, command, data = 0, blocking = False):
         ''' device_base.get(command, data = 0, blocking = False)
         
-        Exit quietly. This attribute should be overwritten in child classes.
+        Send stop command to device immediately.
 
         '''
 
