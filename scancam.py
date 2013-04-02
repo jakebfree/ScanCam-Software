@@ -63,7 +63,132 @@ def wait_for_devices_to_complete_actions(devices, timeout_secs):
 
 
 
+def scan_action(xyz_scan, verbosity):
 
+        scan_point_num = 0
+        for point in xtz_scan:
+
+                scan_point_num += 1
+                if verbose: print "Step", scan_point_num, point
+
+                # Enqueue scan point move commands
+                #x_stage.set_target_speed_in_units( 6.0 )
+                x_stage.move_absolute( point['X'] )
+                theta_stage.move_absolute( point['theta'] )
+                if point.has_key('z0'):
+                        z_stage.move_absolute( point['z0'] )
+
+                        # Set z-axis speed to standard moderately fast value. It may have been set to a
+                        # different value during an image-through-depth sequence
+                        z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
+                        z_stage.step()
+
+                # Step to next queued scan point for all axes
+                for stage in stages:
+                        stage.step()
+                try:
+                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                except zaber_device.DeviceTimeoutError, device_id:
+                        print "Device", device_id, "timed out during move for scan point", scan_point_num
+                        raise
+
+                # If this scan point has no time value, there is no video to record
+                if not point.has_key('t'):
+                        if verbose: print "Point has no time value. Skipping z1 and video"
+                        continue
+                
+                clip_duration = int(point['t'])
+                
+                # If there is a second z-axis value, start the move to it as we start the video clip
+                # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
+                if point.has_key('z1') and point['t'] != float(0.0):
+                        # The move from z0 to z1 should take the same amount of time as the video clip duration
+                        # But, the camera may require a little warm-up time from system call to the first frame
+                        # We'll add a small buffer of time to the z-axis move so that even if the move and clip
+                        # don't start together, at least they will end together.
+                        try:
+                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
+
+                                if target_z_speed > MAX_Z_MOVE_SPEED:
+                                        # Calculate clip duration, rounding up to next int
+                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
+                                        print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
+                                                              "And extending clip duration to:", clip_duration
+                                        target_z_speed = MAX_Z_MOVE_SPEED
+                                # TODO: fix set_target_speed_in_units call to be type agnostic
+                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
+
+                                z_stage.move_absolute( point['z1'] )
+                                z_stage.step()
+                        except ZeroDivisionError:
+                                print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
+                
+                # TODO: Looks like binned cropping is in terms of binned coordinates, but 
+                # subsampled cropping is in terms of full sensor location (not subsampled) locations
+                # verify and handle appropriately
+                
+                # Start raw video recording
+                camera_id = 1
+                subsampling = 3
+                binning = 0
+                x0 = 320
+                x1 = 2240
+                y0 = 0
+                y1 = 1920
+
+                # Build video file target basename in the format:
+                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
+                t = gmtime( time() )
+                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+                if point.has_key('point-id'):
+                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                else:
+                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+
+                # Build camera command
+                command = "idscam video --id " + str(camera_id)
+                
+                if subsampling:
+                        command += " -s " + str(subsampling)
+                if binning:
+                        command += " -b " + str(binning)
+                command += " -d " + str(clip_duration)
+                command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
+                command += " " + filename_base
+
+                if verbose: 
+                        print "Camera command:", command
+
+                if skip_video:
+                        print "Skipping video. Sleeping", clip_duration, "instead"
+                        sleep(clip_duration)
+                        continue
+                
+               # System call to camera
+                try:
+                        if verbose: print "System call to camera."
+                        os.system(command)
+                except KeyboardInterrupt:
+                        raise        
+                except:
+                        raise
+
+                # Create video clip from raw frames, -c arg specs clean up of raw files
+                if verbose: print "Starting video compression."
+                comp_command = "raw2h264 -c " + filename_base
+
+                try:
+                        ret_val = os.system( comp_command )
+                except:
+                        raise
+                if verbose: print "Return val from compression was", ret_val
+
+                # Assure that the last z-axis move was completed
+                try:
+                        z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
+                except zaber_device.DeviceTimeoutError, device_id:
+                        print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                        raise
 
 
 
@@ -151,131 +276,8 @@ if __name__ == '__main__':
                                
                         # Walk through scan
                         if verbose: print "Starting scan number", completed_scans + 1
-                        scan_point_num = 0
-                        for point in xtz_scan:
-
-                                scan_point_num += 1
-                                if verbose: print "Step", scan_point_num, point
-
-                                # Enqueue scan point move commands
-                                #x_stage.set_target_speed_in_units( 6.0 )
-                                x_stage.move_absolute( point['X'] )
-                                theta_stage.move_absolute( point['theta'] )
-                                if point.has_key('z0'):
-                                        z_stage.move_absolute( point['z0'] )
-         
-                                        # Set z-axis speed to standard moderately fast value. It may have been set to a
-                                        # different value during an image-through-depth sequence
-                                        z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
-                                        z_stage.step()
-
-                                # Step to next queued scan point for all axes
-                                for stage in stages:
-                                        stage.step()
-                                try:
-                                        wait_for_devices_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
-                                except zaber_device.DeviceTimeoutError, device_id:
-                                        print "Device", device_id, "timed out during move for scan point", scan_point_num
-                                        raise
-
-                                # If this scan point has no time value, there is no video to record
-                                if not point.has_key('t'):
-                                        if verbose: print "Point has no time value. Skipping z1 and video"
-                                        continue
-                                
-                                clip_duration = int(point['t'])
-                                
-                                # If there is a second z-axis value, start the move to it as we start the video clip
-                                # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
-                                if point.has_key('z1') and point['t'] != float(0.0):
-                                        # The move from z0 to z1 should take the same amount of time as the video clip duration
-                                        # But, the camera may require a little warm-up time from system call to the first frame
-                                        # We'll add a small buffer of time to the z-axis move so that even if the move and clip
-                                        # don't start together, at least they will end together.
-                                        try:
-                                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
-
-                                                if target_z_speed > MAX_Z_MOVE_SPEED:
-                                                        # Calculate clip duration, rounding up to next int
-                                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
-                                                        print target_z_speed, "is to fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
-                                                                              "And extending clip duration to:", clip_duration
-                                                        target_z_speed = MAX_Z_MOVE_SPEED
-                                                # TODO: fix set_target_speed_in_units call to be type agnostic
-                                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
-
-                                                z_stage.move_absolute( point['z1'] )
-                                                z_stage.step()
-                                        except ZeroDivisionError:
-                                                print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
-                                
-                                # TODO: Looks like binned cropping is in terms of binned coordinates, but 
-                                # subsampled cropping is in terms of full sensor location (not subsampled) locations
-                                # verify and handle appropriately
-                                
-                                # Start raw video recording
-                                camera_id = 1
-                                subsampling = 3
-                                binning = 0
-                                x0 = 320
-                                x1 = 2240
-                                y0 = 0
-                                y1 = 1920
-
-                                # Build video file target basename in the format:
-                                #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
-                                t = gmtime( time() )
-                                t_str = "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
-                                if point.has_key('point-id'):
-                                        filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
-                                else:
-                                        filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
-
-                                # Build camera command
-                                command = "idscam video --id " + str(camera_id)
-                                
-                                if subsampling:
-                                        command += " -s " + str(subsampling)
-                                if binning:
-                                        command += " -b " + str(binning)
-                                command += " -d " + str(clip_duration)
-                                command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
-                                command += " " + filename_base
-
-                                if verbose: 
-                                        print "Camera command:", command
-
-                                if skip_video:
-                                        print "Skipping video. Sleeping", clip_duration, "instead"
-                                        sleep(clip_duration)
-                                        continue
-                                
-                               # System call to camera
-                                try:
-                                        if verbose: print "System call to camera."
-                                        os.system(command)
-                                except KeyboardInterrupt:
-                                        raise        
-                                except:
-                                        raise
-
-                                # Create video clip from raw frames, -c arg specs clean up of raw files
-                                if verbose: print "Starting video compression."
-                                comp_command = "raw2h264 -c " + filename_base
-
-                                try:
-                                        ret_val = os.system( comp_command )
-                                except:
-                                        raise
-                                if verbose: print "Return val from compression was", ret_val
-
-                                # Assure that the last z-axis move was completed
-                                try:
-                                        z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
-                                except zaber_device.DeviceTimeoutError, device_id:
-                                        print "Device", device_id, "timed out during second z move on scan point", scan_point_num
-                                        raise
-
+                        scan_action(xyz_scan, verbosity=verbose)
+  
                         completed_scans += 1
 
                         if( just_one_scan == True ):
