@@ -430,19 +430,24 @@ class scancam_base():
                 self.stages = stages
 
 
-        def wait_for_stages_to_complete_actions(timeout_secs):
+        def wait_for_stages_to_complete_actions(self, timeout_secs):
                 '''scancam_base.wait_for_stages_to_complete_actions(timeout_secs)
 
                 For each scancam stage, wait until .in_action() returns False
                 '''
+                # TODO: Fix timing such that if takes first stage X seconds to
+                # get to its target then next stage doesn't have a cumulative
+                # wait of up to X + timeout_secs
                 try:
-                        for stage in stages:
+                        for stage in self.stages.values():
                                 stage.wait_for_action_to_complete( timeout_secs )
                 except zaber_device.DeviceTimeoutError, stage_id:
                         # If one device times out, stop all of them
-                        for stage in stages:
-                                stage.stop()
+                        for stage in self.stages.values():
+                                #stage.stop()
+                                pass
                         raise
+
 
         def build_timestring(self, time):
                 '''scancam_base.build_timestring(time)
@@ -453,14 +458,15 @@ class scancam_base():
                 time:   Time value in seconds past the epoch
                 '''
                 return "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+
                 
-        def stop_stages(self):
-                '''scancam_base.stop_stages()
+        def stop(self):
+                '''scancam_base.stop()
 
                 Send stop command to all stages.
                 '''
-                for stage in stages:
-                        stages[stage].do_stop_command()
+                for stage in self.stages.values():
+                        stage.stop()
 
 
         def home(self):
@@ -468,15 +474,43 @@ class scancam_base():
 
                 Send home command to all stages and wait to complete
                 '''
-                for stage in stages:
-                        self.stages[stage].home()
-                        self.stages[stage].step()
+                for stage in self.stages.values():
+                        stage.home()
+                        stage.step()
 
                 try:
-                        self.wait_for_stages_to_complete_actions( stages, DEFAULT_STAGE_ACTION_TIMEOUT )
+                        self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
                 except zaber_device.DeviceTimeoutError, device_id:
                         print "Device", device_id, "timed out during intial homing"
                         raise
+
+
+        def move_stages(self, stage_targets):
+                '''scancam_base.move_stages(scanpoint, verbosity = False)
+
+                Move as many stages as are specified in the scanpoint and wait
+                for completion.
+
+                stage_targets:  Dictionary of stage targets. Keys are the stage
+                                ids. Values are the stage targets in scientific
+                                units.
+
+                verbosity:      Verbosity
+                '''
+                for stage_id in stage_targets:
+                        
+                        # Enqueue scan point move commands
+                        self.stages[stage_id].move_absolute( stage_targets[stage_id] )
+
+                        # Step to next queued scan point for all axes
+                        self.stages[stage_id].step()
+
+                        # Wait for all moves to complete
+                        try:
+                                self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                print "Device", device_id, "timed out during move for scan point", scan_point_num
+                                raise
 
 
 class xthetaz_scancam(scancam_base):
@@ -590,7 +624,7 @@ class xthetaz_scancam(scancam_base):
                 return x_theta_point
 
 
-        def scan_action(self, xyz_scan, verbosity):
+        def scan_action(self, xyz_scan, verbosity = False):
 
                 scan_point_num = 0
                 for point in xyz_scan.scanpoints:
