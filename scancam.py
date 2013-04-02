@@ -498,19 +498,19 @@ class scancam_base():
                 verbosity:      Verbosity
                 '''
                 for stage_id in stage_targets:
-                        
                         # Enqueue scan point move commands
                         self.stages[stage_id].move_absolute( stage_targets[stage_id] )
 
+                for stage_id in stage_targets:
                         # Step to next queued scan point for all axes
                         self.stages[stage_id].step()
 
-                        # Wait for all moves to complete
-                        try:
-                                self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
-                        except zaber_device.DeviceTimeoutError, device_id:
-                                print "Device", device_id, "timed out during move for scan point", scan_point_num
-                                raise
+                # Wait for all moves to complete
+                try:
+                        self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                except zaber_device.DeviceTimeoutError, device_id:
+                        print "Device", device_id, "timed out during move for scan point", scan_point_num
+                        raise
 
 
 class xthetaz_scancam(scancam_base):
