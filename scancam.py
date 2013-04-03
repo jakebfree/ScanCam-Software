@@ -554,7 +554,7 @@ class xthetaz_scancam(scancam_base):
         max_X:          Maximum acceptable setting for the X-axis.
         '''
 
-        def __init__(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0):
+        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0):
 
                 self.arm_length = arm_length
                 self.min_X = min_X
