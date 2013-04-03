@@ -671,13 +671,10 @@ class xthetaz_scancam(scancam_base):
                         scan_point_num += 1
                         if verbose: print "Step", scan_point_num, point
 
-                        
-
                         # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
-
+                        
                         move_setting = {'x': point['x'],
-                                        'y': point['y'],
-                                        }
+                                        'y': point['y']}
                         if point.has_key('z0'):
                                 # Set z-axis speed to standard moderately fast value. It may have been set to a
                                 # different value during an image-through-depth sequence
@@ -691,6 +688,8 @@ class xthetaz_scancam(scancam_base):
                         
 
                         # If this scan point has no time value, there is no video to record
+                        # Probably a transitional point that is just there to avoid crashing
+                        # into walls.
                         if not point.has_key('t'):
                                 if verbose: print "Point has no time value. Skipping z1 and video"
                                 continue
@@ -740,20 +739,6 @@ class xthetaz_scancam(scancam_base):
                         else:
                                 filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
 
-                        # Build camera command
-                        command = "idscam video --id " + str(camera_id)
-                        
-                        if subsampling:
-                                command += " -s " + str(subsampling)
-                        if binning:
-                                command += " -b " + str(binning)
-                        command += " -d " + str(clip_duration)
-                        command += " -x0 %d -ex0 %d -x1 %d -ex1 %d -y0 %d -ey0 %d -y1 %d -ey1 %d" % (x0,x0,x1,x1,y0,y0,y1,y1)
-                        command += " " + filename_base
-
-                        if verbose: 
-                                print "Camera command:", command
-
                         if skip_video:
                                 print "Skipping video. Sleeping", clip_duration, "instead"
                                 sleep(clip_duration)
@@ -768,7 +753,7 @@ class xthetaz_scancam(scancam_base):
                         except:
                                 raise
 
-                        # Create video clip from raw frames, -c arg specs clean up of raw files
+                        # Create video clip from raw frames, '-c' arg specs clean up of raw files
                         if verbose: print "Starting video compression."
                         comp_command = "raw2h264 -c " + filename_base
 
@@ -786,7 +771,262 @@ class xthetaz_scancam(scancam_base):
                                 raise
 
 
+class camera_base():
+        '''camera_base(   )
 
+        Base camera class that can be parent to specific camera types
+        '''
+
+        def __init__():
+                pass
+
+        def record_video(filename_base,
+                         clip_duration,
+                         subsampling = None,
+                         binning = None,
+                         cropping = None,
+                         exposure_window = None):
+                pass                 
+                                                 
+        def get_sensor_resoultion(self):
+                '''get_sensor_resolution()
+
+                Returns the full resolution of the sensor as tuple:
+                        ( <width>, <height> )
+                '''
+                return self.sensor_resolution
+                        
+                         
+class ueye_camera(camera_base):
+        '''ueye_camera(cam_id = None,
+                     cam_serial_num = None,
+                     cam_device_id = None,
+                     subsampling = None,
+                     binning = None,
+                     cropping = None,
+                     exposure_window = None,
+                     num_camera_calls_between_ueye_daemon_restarts = 50,
+                     verbosity = False)
+
+        Class representing the uEye family of cameras from IDS. Uses system
+        calls to idscam to implement video clips
+
+        cam_id:
+
+        cam_serial_num:
+
+        cam_device_id:
+
+        subsampling:    Integer representing the resolution reduction factor
+                        achieved by the camera only reading a subset of the
+                        sensor's pixels. Thus the total field of view of the
+                        camera is maintained while decreasing the resolution of
+                        the images. The factor is applied in both horiz and vert
+                        directions. E.g. a 2560x1920 with 3x subsampling
+                        produces an image that is 854x640. Available settings
+                        depend on the camera model. Mutually exclusive with
+                        binning.
+
+        binning:        Integer representing the resolution reduction factor
+                        achieved by the camera returning an averaged vallue for
+                        a small groups of pixels. Thus the total field of view
+                        of the camera is maintained while decreasing the
+                        resolution of the images. The factor is applied in both
+                        horiz and vert directions. E.g. a 2560x1920 sensor with
+                        2x subsampling produces an image that is 1280x960.
+                        Available settings depend on the camera model. Mutually
+                        exclusive with subsampling.
+
+        cropping:       Tuple of integers conataining the borders of the area to be cropped
+                        (<left edge>, <right edge>, <top edge>, <bottom edge>)
+                        Pixel locations are represented in terms of the image, not the sensor.
+                        For example: When using binning, the cropped should be
+                        specified in terms of the smaller binned resolution.
+
+        exposure_window:Region of the sensor to use for light intensity
+                        measurement to determine exposure. Value is a specified
+                        as a tuple: (<left edge>, <right edge>, <top edge>,
+                        <bottom edge>) where each component is an integer value
+                        representing the pixel location of the window's edge.
+                        Pixel locations are represented in terms of the image,
+                        not the sensor. For example: When using binning, the
+                        cropped should be specified in terms of the smaller
+                        binned resolution.
+
+        num_camera_calls_between_ueye_daemon_restarts:  Number of system calls
+                        to ueye camera before restarting its flakey daemon
+
+        verbosity:      Verbosity
+
+        Camera video parameters set during construction become the default values
+        for subsequent video capture calls unless overridden in the video call.
+        '''
+
+        def __init__(cam_id = None,
+                     cam_serial_number = None,
+                     cam_device_id = None,
+                     subsampling = None,
+                     binning = None,
+                     cropping = None,
+                     exposure_window = None,
+                     num_camera_calls_between_ueye_daemon_restarts = 50,
+                     verbosity = False)
+                     
+                if subsampling != None and binning != None:
+                        print "Error: Either subsampling OR binning may be specified, not both."
+                        raise ValueError
+
+                # Query general information from camera
+                if cam_device_id != None:
+                        camera_command = "idscam info --device " + str(cam_device_id)
+                elif cam_id != None:
+                        camera_command = "idscam info --id " + str(cam_id)
+                elif cam_serial_number != None:
+                        camera_command = "idscam info --serial " + str(cam_serial_number)
+                else:
+                        print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
+                        raise ValueError
+
+                # TODO: handle errors
+                #rval = os.system( camera_command )
+                #if verbosity: print rval
+                # TODO: Parse response to populate camera properties
+                # TODO: Check parameter values against allowable settings
+                self.sensor_resolution = (2560, 1920)
+
+                self.binning = binning
+                self.cropping = cropping
+                self.exposure_window = exposure_window
+                
+                if binning:
+                        self.video_resolution = ( self.sensor_resolution[0]/binning, \
+                                                  self.sensor_resolution[1]/binning )
+                if subsampling:
+                        self.video_resolution = ( self.sensor_resolution[0]/subsampling, \
+                                                  self.sensor_resolution[1]/subsampling )
+
+                # Setup variables for implementing ueye daemon restarting workaround
+                # Context: Daemon fails badly after too many video calls without
+                # daemon restart, and also fails badly if you restart the daemon too
+                # often. The workaround is to restart the daemon every X video calls
+                self.num_camera_calls_since_ueye_daemon_restart = 0
+                self.num_camera_calls_between_ueye_daemon_restarts = num_camera_calls_between_ueye_daemon_restarts
+
+                
+        def record_video(filename_base,
+                         clip_duration,
+                         subsampling = None,
+                         binning = None,
+                         cropping = None,
+                         exposure_window = None):
+                '''record_video( filename_base,
+                                 clip_duration,
+                                 subsampling = None,
+                                 binning = None,
+                                 cropping = None,
+                                 exposure_window = None):
+
+                Record a video clip and compress to h264 file.
+
+                filename_base:  Name of video clip file to create. It is appended
+                                with ".h226"
+
+                clip_duration:  Integer value in seconds of video clip.
+
+                subsampling:    Integer representing the resolution reduction factor
+                                achieved by the camera only reading a subset of the
+                                sensor's pixels. Thus the total field of view of the
+                                camera is maintained while decreasing the resolution of
+                                the images. The factor is applied in both horiz and vert
+                                directions. E.g. a 2560x1920 with 3x subsampling
+                                produces an image that is 854x640. Available settings
+                                depend on the camera model. Mutually exclusive with
+                                binning.
+
+                binning:        Integer representing the resolution reduction factor
+                                achieved by the camera returning an averaged vallue for
+                                a small groups of pixels. Thus the total field of view
+                                of the camera is maintained while decreasing the
+                                resolution of the images. The factor is applied in both
+                                horiz and vert directions. E.g. a 2560x1920 sensor with
+                                2x subsampling produces an image that is 1280x960.
+                                Available settings depend on the camera model. Mutually
+                                exclusive with subsampling.
+
+                cropping:       Tuple of integers conataining the borders of the area to be cropped
+                                (<left edge>, <right edge>, <top edge>, <bottom edge>)
+                                Pixel locations are represented in terms of the image, not the sensor.
+                                For example: When using binning, the cropped should be
+                                specified in terms of the smaller binned resolution.
+
+                exposure_window:Region of the sensor to use for light intensity
+                                measurement to determine exposure. Value is a specified
+                                as a tuple: (<left edge>, <right edge>, <top edge>,
+                                <bottom edge>) where each component is an integer value
+                                representing the pixel location of the window's edge.
+                                Pixel locations are represented in terms of the image,
+                                not the sensor. For example: When using binning, the
+                                cropped should be specified in terms of the smaller
+                                binned resolution.
+
+                Video is taken at fastest frame rate available given other video
+                parameters.
+                '''
+
+                # TODO: Value check parameters
+
+                # Start to build camera command with camera identifier
+                if self.cam_device_id != None:
+                        command = "idscam video --device " + str(self. cam_device_id)
+                elif self.cam_id != None:
+                        command = "idscam video --id ", str(self.cam_id)
+                elif self.cam_serial_number != None:
+                        command = "idscam video --serial " + str(self.cam_serial_number)
+                else:
+                        print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
+                        raise ValueError
+
+                # If video parameter not given, default to camera values                
+                if subsampling != None:
+                        subsampling = self.subsampling
+                if binning != None:
+                        binning = self.binning
+                if cropping != None:
+                        cropping = self.cropping
+                if exposure_window != None:
+                        exposure_window = self.exposure_window
+
+                # TODO: Check window params against image size determined by binning or subsampling
+
+                # Add optional video parameters to command
+                if subsampling != None:
+                        command += " -s " + str(subsampling)
+                        
+                if binning != None:
+                        command += " -b " + str(binning)
+
+                if cropping != None:
+                        command += " -x0 " + str(cropping[0])
+                        command += " -x1 " + str(cropping[1])
+                        command += " -y0 " + str(cropping[2])
+                        command += " -y1 " + str(cropping[3])
+                           
+                if exposure_window != None:
+                        command += " -ex0 " + str(exposure_window[0])
+                        command += " -ex1 " + str(exposure_window[1])
+                        command += " -ey0 " + str(exposure_window[2])
+                        command += " -ey1 " + str(exposure_window[3])
+
+                command += " -d " + str(clip_duration)
+                command += " " + filename_base
+
+                if verbose: 
+                        print "Camera command:", command
+
+                self.num_camera_calls_since_ueye_daemon_restart += 1
+                # TODO: Add camera system call
+                
+        
 # Temporary x--theta scan for testing
 xtz_keys = ( 'X', 'theta', 'z', 't' )
 arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
