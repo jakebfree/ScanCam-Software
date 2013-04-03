@@ -596,14 +596,14 @@ class xthetaz_scancam(scancam_base):
                 # when it doesn't have to, it first tries using the same type of angle (acos or its
                 # negative) that it did last time in order to avoid unnecessary swings.
                 past_reach = False
-                if not used_negative_of_angle_last_time:
+                if not self.used_negative_of_angle_last_time:
                         try:
-                                theta = math.degrees( math.acos( float(-y)/float(arm_length) ))
+                                theta = math.degrees( math.acos( float(-y)/float(self.arm_length) ))
                         except ValueError:
                                 past_reach = True
                 else:
                         try:
-                                theta = 360 - math.degrees( math.acos( float(-y)/float(arm_length) ))
+                                theta = 360 - math.degrees( math.acos( float(-y)/float(self.arm_length) ))
                         except ValueError:
                                 past_reach = True
                 
@@ -616,18 +616,18 @@ class xthetaz_scancam(scancam_base):
                                 theta = 0.0
                         if verbosity: print "Incapable of reaching location (%f, %f). Setting theta=%f" % (x, y, theta)
 
-                X = x + arm_length * math.sin( math.radians( theta ) )
+                X = x + self.arm_length * math.sin( math.radians( theta ) )
 
                 # If the calculated X is out of bounds, swing theta to its negative (which could be back
                 # to the natural acos)
-                if X < min_X or X > max_X:
+                if X < self.min_X or X > self.max_X:
                         self.used_negative_of_angle_last_time = not self.used_negative_of_angle_last_time
                         theta = 360 - theta     
-                        X = x - arm_length * math.sin( math.radians( theta ) )
+                        X = x - self.arm_length * math.sin( math.radians( theta ) )
 
                 # If X is still out of bounds, it must be unachievable. Raise exception
                 # TODO: Switch to user defined exception
-                if X < min_X or X > max_X:
+                if X < self.min_X or X > self.max_X:
                         print "Unable to translate (%f, %f) to X-theta coordinates." % (x,y)
                         print "Calculated X value of %f is out of range." % X
                         raise SyntaxError
