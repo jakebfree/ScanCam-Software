@@ -540,6 +540,16 @@ class scancam_base():
                         raise
 
 
+        def in_action(self):
+                '''scancam_base.in_action()
+
+                Return true if one or more devices is in action.
+                '''
+                in_action = False
+                for stage in self.stages:
+                        in_action = in_action or self.stages[stage].in_action()
+                return in_action
+        
 
 class xthetaz_scancam(scancam_base):
         '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0,
