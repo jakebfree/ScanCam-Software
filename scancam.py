@@ -242,7 +242,7 @@ class six_well_scan(scan_base):
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
-                     clip_duration = 10,
+                     clip_duration = 0,
                      verbosity=False):
 
                 self.calibrated_for_z = False
@@ -399,8 +399,8 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 # generate scan from calculated corner
 proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
 #                          scan_id = 'proto_scan',
-                          num_h_scan_points = 1,
-                          num_v_scan_points = 1,
+                          num_h_scan_points = 3,
+                          num_v_scan_points = 4,
                           verbosity = verbose_for_scan_build )
 
 
@@ -461,13 +461,13 @@ class scancam_base():
                         raise
 
 
-        def build_timestring(self, time):
+        def build_timestring(self, t):
                 '''scancam_base.build_timestring(time)
 
                 Build timestring in the format:
                         YYYY-MM-DD_HH-MM-SS
 
-                time:   Time value in seconds past the epoch
+                t:   Time value in seconds past the epoch
                 '''
                 return "%04d-%02d-%02d_%02d-%02d-%02d" % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
 
