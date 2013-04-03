@@ -84,13 +84,13 @@ class scan_base():
                t > 0:          Video clip duration. Also used to determine z-speed during move to z1
         '''
 
-        def __init__(self, id = None, video_params = None):
+        def __init__(self, id = None, video_format_params = None):
                 if id == None:
                         id = str(hash(self))
                 self.id = id
 
                 # TODO: Compare video params keys against valid camera options?
-                self.video_params = video_params
+                self.video_format_params = video_format_params
                 
                 self.scanpoints = []
 
@@ -229,7 +229,7 @@ class six_well_scan(scan_base):
         
         clip_duration:          Duration in seconds to record video for each scan point
 
-        video_params:           Dictionary of video params to be passed to camera when
+        video_format_params:    Dictionary of video params to be passed to camera when
                                 recording video clips
 
         verbosity:              Verbosity
@@ -246,7 +246,7 @@ class six_well_scan(scan_base):
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
                      clip_duration = 0,
-                     image_params = None,
+                     video_format_params = None,
                      verbosity=False):
 
                 self.calibrated_for_z = False
@@ -259,7 +259,7 @@ class six_well_scan(scan_base):
                                         {'y': 47.0, 'x': 28.1},
                                         {'y': 85.3, 'x': 28.1}    ]
 
-                scan_base.__init__(self, scan_id)
+                scan_base.__init__(self, scan_id, video_format_params)
 
                 # Build list of top left well corners from top-left corner of top-left well and deltas
                 # TODO: make into inheritable function
@@ -279,8 +279,6 @@ class six_well_scan(scan_base):
 
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
-
-                self.video_params = video_params
 
 
 
@@ -406,8 +404,8 @@ proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
                           scan_id = 'proto_scan',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
-                          video_params = { 'subsampling': 3,
-                                           'cropping': (320, 2240, 0, 1920) }
+                          video_format_params = { 'subsampling': 3,
+                                           'cropping': (320, 2240, 0, 1920) },
                           verbosity = verbose_for_scan_build )
 
 
@@ -660,8 +658,7 @@ class xthetaz_scancam(scancam_base):
                 '''
                 xtz_setting = {}
                 if settings.has_key('x') and settings.has_key('y'):
-                        xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']},
-                                                      verbosity = verbosity )
+                        xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']}, verbosity = verbosity )
                 elif settings.has_key('x') or settings.has_key('y'):
                         print "Error: Only have one of two necessary (x,y) coord needed to compute X and theta"
                         raise KeyError
@@ -785,12 +782,8 @@ class camera_base():
 
         def record_video(filename_base,
                          clip_duration,
-                         subsampling = None,
-                         binning = None,
-                         cropping = None,
-                         exposure_window = None):
-                '''camera_base.record_video(filename_base, clip_duration, subsampling = None, binning = None,
-                                 cropping = None, exposure_window = None)
+                         video_format_params = None):
+                '''camera_base.record_video(filename_base, clip_duration, video_format_params = None)
 
                 Not very interesting. Intended as prototype for derived classes.
                 '''
@@ -861,18 +854,8 @@ class ueye_camera(camera_base):
                 self.num_camera_calls_between_ueye_daemon_restarts = num_camera_calls_between_ueye_daemon_restarts
 
                 
-        def record_video(filename_base,
-                         clip_duration,
-                         subsampling = None,
-                         binning = None,
-                         cropping = None,
-                         exposure_window = None):
-                '''record_video( filename_base,
-                                 clip_duration,
-                                 subsampling = None,
-                                 binning = None,
-                                 cropping = None,
-                                 exposure_window = None):
+        def record_video(filename_base, clip_duration, video_format_params = None ):
+                '''ueye_camera.record_video(filename_base, clip_duration, video_format_params = None)
 
                 Record a video clip and compress to h264 file.
 
@@ -881,7 +864,10 @@ class ueye_camera(camera_base):
 
                 clip_duration:  Integer value in seconds of video clip duration.
 
-                subsampling:    Integer representing the resolution reduction factor
+                video_format_params:  Dictionary of video format parameters to apply
+                                to the video. Acceptable keys are:
+
+                        'subsampling':    Integer representing the resolution reduction factor
                                 achieved by the camera only reading a subset of the
                                 sensor's pixels. Thus the total field of view of the
                                 camera is maintained while decreasing the resolution of
@@ -891,7 +877,7 @@ class ueye_camera(camera_base):
                                 depend on the camera model. Mutually exclusive with
                                 binning.
 
-                binning:        Integer representing the resolution reduction factor
+                        'binning'        Integer representing the resolution reduction factor
                                 achieved by the camera returning an averaged vallue for
                                 a small groups of pixels. Thus the total field of view
                                 of the camera is maintained while decreasing the
@@ -901,13 +887,13 @@ class ueye_camera(camera_base):
                                 Available settings depend on the camera model. Mutually
                                 exclusive with subsampling.
 
-                cropping:       Tuple of integers conataining the borders of the area to be cropped
+                        'cropping'       Tuple of integers conataining the borders of the area to be cropped
                                 (<left edge>, <right edge>, <top edge>, <bottom edge>)
                                 Pixel locations are represented in terms of the image, not the sensor.
                                 For example: When using binning, the cropped should be
                                 specified in terms of the smaller binned resolution.
 
-                exposure_window:Region of the sensor to use for light intensity
+                        'exposure_window'  Region of the sensor to use for light intensity
                                 measurement to determine exposure. Value is a specified
                                 as a tuple: (<left edge>, <right edge>, <top edge>,
                                 <bottom edge>) where each component is an integer value
@@ -935,25 +921,29 @@ class ueye_camera(camera_base):
                         raise ValueError
 
                 # TODO: Check window params against image size determined by binning or subsampling
-
+                if video_format_params.has_key('subsampling') and video_format_params.has_key('binning'):
+                        print "Error: subsampling and binning are mutually exclusive"
+                        raise ValueError
+                                                                                              
                 # Add optional video parameters to command
-                if subsampling != None:
-                        command += " -s " + str(subsampling)
-                        
-                if binning != None:
-                        command += " -b " + str(binning)
+                if video_format_params != None:
+                        if video_format_params.has_key('subsampling'):
+                                command += " -s " + str(video_format_params['subsampling'])
+                                
+                        if video_format_params.has_key('binning'):
+                                command += " -b " + str(video_format_params['binning'])
 
-                if cropping != None:
-                        command += " -x0 " + str(cropping[0])
-                        command += " -x1 " + str(cropping[1])
-                        command += " -y0 " + str(cropping[2])
-                        command += " -y1 " + str(cropping[3])
-                           
-                if exposure_window != None:
-                        command += " -ex0 " + str(exposure_window[0])
-                        command += " -ex1 " + str(exposure_window[1])
-                        command += " -ey0 " + str(exposure_window[2])
-                        command += " -ey1 " + str(exposure_window[3])
+                        if video_format_params.has_key('cropping'):
+                                command += " -x0 " + str(video_format_params['cropping'][0])
+                                command += " -x1 " + str(video_format_params['cropping'][1])
+                                command += " -y0 " + str(video_format_params['cropping'][2])
+                                command += " -y1 " + str(video_format_params['cropping'][3])
+                                   
+                        if video_format_params.has_key('exposure_window'):
+                                command += " -ex0 " + str(video_format_params['exposure_window'][0])
+                                command += " -ex1 " + str(video_format_params['exposure_window'][1])
+                                command += " -ey0 " + str(video_format_params['exposure_window'][2])
+                                command += " -ey1 " + str(video_format_params['exposure_window'][3])
 
                 command += " -d " + str(clip_duration)
                 command += " " + filename_base
