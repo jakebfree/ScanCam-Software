@@ -33,9 +33,10 @@ min_period_bt_scans = 1                 # in minutes
 verbose = True
 home_on_start = False
 just_one_scan = True
-skip_video = True
+skip_video = False
 comm_device = "COM3"
 scan_filename = "/etc/"
+skip_compression = True
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -744,28 +745,18 @@ class xthetaz_scancam(scancam_base):
 
                         # Record Video                        
                         try:
-                                camera.record_video(filename_base, clip_duration, video_params)
+                                camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
                         except KeyboardInterrupt:
                                 raise        
                         except:
                                 raise
 
-                        # Create video clip from raw frames, '-c' arg specs clean up of raw files
-                        if verbose: print "Starting video compression."
-                        comp_command = "raw2h264 -c " + filename_base
-
-                        try:
-                                ret_val = os.system( comp_command )
-                        except:
-                                raise
-                        if verbose: print "Return val from compression was", ret_val
-
                         # Assure that the last z-axis move was completed
-                        try:
-                                z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
-                        except zaber_device.DeviceTimeoutError, device_id:
-                                print "Device", device_id, "timed out during second z move on scan point", scan_point_num
-                                raise
+                        #try:
+                                #z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        #except zaber_device.DeviceTimeoutError, device_id:
+                                #print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                                #raise
 
                         
 #####################################################################################################################
@@ -826,7 +817,11 @@ class ueye_camera(camera_base):
                      cam_device_id = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
                      verbose = False):
-                     
+
+                self.cam_id = cam_id
+                self.cam_serial_number = cam_serial_number
+                self.cam_device_id = cam_device_id
+                
                 # Query general information from camera
                 if cam_device_id != None:
                         camera_command = "idscam info --device " + str(cam_device_id)
@@ -854,7 +849,7 @@ class ueye_camera(camera_base):
                 self.num_camera_calls_between_ueye_daemon_restarts = num_camera_calls_between_ueye_daemon_restarts
 
                 
-        def record_video(filename_base, clip_duration, video_format_params = None ):
+        def record_video(self, filename_base, clip_duration, video_format_params = None ):
                 '''ueye_camera.record_video(filename_base, clip_duration, video_format_params = None)
 
                 Record a video clip and compress to h264 file.
@@ -921,6 +916,7 @@ class ueye_camera(camera_base):
                         raise ValueError
 
                 # TODO: Check window params against image size determined by binning or subsampling
+
                 if video_format_params.has_key('subsampling') and video_format_params.has_key('binning'):
                         print "Error: subsampling and binning are mutually exclusive"
                         raise ValueError
@@ -953,7 +949,20 @@ class ueye_camera(camera_base):
 
                 self.num_camera_calls_since_ueye_daemon_restart += 1
                 # TODO: Add camera system call
-                
+
+                if skip_compression: return
+
+                # Create video clip from raw frames, '-c' arg specs clean up of raw files
+                if verbose: print "Starting video compression."
+                comp_command = "raw2h264 -c " + filename_base
+
+                try:
+                        ret_val = os.system( comp_command )
+                except:
+                        raise
+                if verbose: print "Return val from compression was", ret_val
+
+                  
         
 # Temporary x--theta scan for testing
 xtz_keys = ( 'X', 'theta', 'z', 't' )
