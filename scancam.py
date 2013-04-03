@@ -801,10 +801,6 @@ class ueye_camera(camera_base):
         '''ueye_camera(cam_id = None,
                      cam_serial_num = None,
                      cam_device_id = None,
-                     subsampling = None,
-                     binning = None,
-                     cropping = None,
-                     exposure_window = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
                      verbosity = False)
 
@@ -817,65 +813,18 @@ class ueye_camera(camera_base):
 
         cam_device_id:
 
-        subsampling:    Integer representing the resolution reduction factor
-                        achieved by the camera only reading a subset of the
-                        sensor's pixels. Thus the total field of view of the
-                        camera is maintained while decreasing the resolution of
-                        the images. The factor is applied in both horiz and vert
-                        directions. E.g. a 2560x1920 with 3x subsampling
-                        produces an image that is 854x640. Available settings
-                        depend on the camera model. Mutually exclusive with
-                        binning.
-
-        binning:        Integer representing the resolution reduction factor
-                        achieved by the camera returning an averaged vallue for
-                        a small groups of pixels. Thus the total field of view
-                        of the camera is maintained while decreasing the
-                        resolution of the images. The factor is applied in both
-                        horiz and vert directions. E.g. a 2560x1920 sensor with
-                        2x subsampling produces an image that is 1280x960.
-                        Available settings depend on the camera model. Mutually
-                        exclusive with subsampling.
-
-        cropping:       Tuple of integers conataining the borders of the area to be cropped
-                        (<left edge>, <right edge>, <top edge>, <bottom edge>)
-                        Pixel locations are represented in terms of the image, not the sensor.
-                        For example: When using binning, the cropped should be
-                        specified in terms of the smaller binned resolution.
-
-        exposure_window:Region of the sensor to use for light intensity
-                        measurement to determine exposure. Value is a specified
-                        as a tuple: (<left edge>, <right edge>, <top edge>,
-                        <bottom edge>) where each component is an integer value
-                        representing the pixel location of the window's edge.
-                        Pixel locations are represented in terms of the image,
-                        not the sensor. For example: When using binning, the
-                        cropped should be specified in terms of the smaller
-                        binned resolution.
-
         num_camera_calls_between_ueye_daemon_restarts:  Number of system calls
                         to ueye camera before restarting its flakey daemon
 
         verbosity:      Verbosity
-
-        Camera video parameters set during construction become the default values
-        for subsequent video capture calls unless overridden in the video call.
         '''
 
         def __init__(cam_id = None,
                      cam_serial_number = None,
                      cam_device_id = None,
-                     subsampling = None,
-                     binning = None,
-                     cropping = None,
-                     exposure_window = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
-                     verbosity = False)
+                     verbosity = False):
                      
-                if subsampling != None and binning != None:
-                        print "Error: Either subsampling OR binning may be specified, not both."
-                        raise ValueError
-
                 # Query general information from camera
                 if cam_device_id != None:
                         camera_command = "idscam info --device " + str(cam_device_id)
@@ -891,19 +840,8 @@ class ueye_camera(camera_base):
                 #rval = os.system( camera_command )
                 #if verbosity: print rval
                 # TODO: Parse response to populate camera properties
-                # TODO: Check parameter values against allowable settings
                 self.sensor_resolution = (2560, 1920)
 
-                self.binning = binning
-                self.cropping = cropping
-                self.exposure_window = exposure_window
-                
-                if binning:
-                        self.video_resolution = ( self.sensor_resolution[0]/binning, \
-                                                  self.sensor_resolution[1]/binning )
-                if subsampling:
-                        self.video_resolution = ( self.sensor_resolution[0]/subsampling, \
-                                                  self.sensor_resolution[1]/subsampling )
 
                 # Setup variables for implementing ueye daemon restarting workaround
                 # Context: Daemon fails badly after too many video calls without
@@ -929,9 +867,9 @@ class ueye_camera(camera_base):
                 Record a video clip and compress to h264 file.
 
                 filename_base:  Name of video clip file to create. It is appended
-                                with ".h226"
+                                with ".h226" on actual file.
 
-                clip_duration:  Integer value in seconds of video clip.
+                clip_duration:  Integer value in seconds of video clip duration.
 
                 subsampling:    Integer representing the resolution reduction factor
                                 achieved by the camera only reading a subset of the
@@ -985,16 +923,6 @@ class ueye_camera(camera_base):
                 else:
                         print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
                         raise ValueError
-
-                # If video parameter not given, default to camera values                
-                if subsampling != None:
-                        subsampling = self.subsampling
-                if binning != None:
-                        binning = self.binning
-                if cropping != None:
-                        cropping = self.cropping
-                if exposure_window != None:
-                        exposure_window = self.exposure_window
 
                 # TODO: Check window params against image size determined by binning or subsampling
 
