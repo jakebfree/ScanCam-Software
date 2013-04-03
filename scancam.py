@@ -50,22 +50,19 @@ verbose_for_scan_build = True
 
 
 class scan_base():
-        '''scan_base(id)
+        '''scan_base(id = None, video_params = None)
 
         Implements the scan base class.
 
-        id: A user-defined string for this scan. If no id is passed then a
-                string representation of the hash of this instance is used
-                
+        id:             A user-defined string for this scan. If no id is passed then a
+                        string representation of the hash of this instance is used
+
+        video-params:   Dictionary containing optional camera video parameters such as:
+                        binning, subsampling, cropping, exposure window. If none are
+                        specified the camera will use its default values.
+        
         Each scan is a sequential list of dictionaries, each of which represents a single
-        scan point. Each point must minimally include 'x' and 'y' or 'X' and 'theta' keys.
-
-        In order to differentiate between the cartesian and specialized rotary coordinates
-        a lower case 'x' is used for cartesian and an uppercase 'X' for the rotary.
-
-        The scans are generally first created in standard cartesian coordinates (x, y)
-        for familiarity and ease, but the ScanCam is implemented with a rotary axis so they
-        must be transformed into X-theta coordinates before commanding the devices.
+        scan point. Each point must minimally include 'x' and 'y' keys.
 
         The dictionaries may optionally also include the following keys:
            'z0' -      The depth setting for a given scan point. When used with 'z1', the
@@ -87,11 +84,14 @@ class scan_base():
                t > 0:          Video clip duration. Also used to determine z-speed during move to z1
         '''
 
-        def __init__(self, id=None):
+        def __init__(self, id = None, video_params = None):
                 if id == None:
                         id = str(hash(self))
                 self.id = id
 
+                # TODO: Compare video params keys against valid camera options?
+                self.video_params = video_params
+                
                 self.scanpoints = []
 
 
@@ -229,13 +229,16 @@ class six_well_scan(scan_base):
         
         clip_duration:          Duration in seconds to record video for each scan point
 
+        video_params:           Dictionary of video params to be passed to camera when
+                                recording video clips
+
         verbosity:              Verbosity
 
         Assumes that the orientation of the plate is such that it is vertical
         (long axis of plate and wells is in y-direction) and the top-left well is
         higher than the top-right well.
         '''
-
+                        
 
         def __init__(self,
                      top_left_corner,
@@ -243,6 +246,7 @@ class six_well_scan(scan_base):
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
                      clip_duration = 0,
+                     image_params = None,
                      verbosity=False):
 
                 self.calibrated_for_z = False
@@ -276,6 +280,7 @@ class six_well_scan(scan_base):
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
 
+                self.video_params = video_params
 
 
 
@@ -398,9 +403,11 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
 proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
-#                          scan_id = 'proto_scan',
+                          scan_id = 'proto_scan',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
+                          video_params = { 'subsampling': 3,
+                                           'cropping': (320, 2240, 0, 1920) }
                           verbosity = verbose_for_scan_build )
 
 
@@ -725,15 +732,6 @@ class xthetaz_scancam(scancam_base):
                         # subsampled cropping is in terms of full sensor location (not subsampled) locations
                         # verify and handle appropriately
                         
-                        # Start raw video recording
-                        camera_id = 1
-                        subsampling = 3
-                        binning = 0
-                        x0 = 320
-                        x1 = 2240
-                        y0 = 0
-                        y1 = 1920
-
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
                         t_str = self.build_timestring( gmtime(time()) )
@@ -746,11 +744,10 @@ class xthetaz_scancam(scancam_base):
                                 print "Skipping video. Sleeping", clip_duration, "instead"
                                 sleep(clip_duration)
                                 continue
-                        
-                       # System call to camera
+
+                        # Record Video                        
                         try:
-                                if verbose: print "System call to camera."
-                                os.system(command)
+                                camera.record_video(filename_base, clip_duration, video_params)
                         except KeyboardInterrupt:
                                 raise        
                         except:
@@ -806,7 +803,7 @@ class camera_base():
                         ( <width>, <height> )
                 '''
                 return self.sensor_resolution
-                        
+
                          
 class ueye_camera(camera_base):
         '''ueye_camera(cam_id = None,
