@@ -671,28 +671,24 @@ class xthetaz_scancam(scancam_base):
                         scan_point_num += 1
                         if verbose: print "Step", scan_point_num, point
 
-                        # Enqueue scan point move commands
-                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
-                        # TODO: handle exceptions with coord trans
-                        x_theta_point = xy2xtheta(point)
-                        x_stage.move_absolute( x_theta_point['X'] )
-                        theta_stage.move_absolute( x_theta_point['theta'] )
-                        if point.has_key('z0'):
-                                z_stage.move_absolute( point['z0'] )
+                        
 
+                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
+
+                        move_setting = {'x': point['x'],
+                                        'y': point['y'],
+                                        }
+                        if point.has_key('z0'):
                                 # Set z-axis speed to standard moderately fast value. It may have been set to a
                                 # different value during an image-through-depth sequence
+                                # TODO: fix this to work more appropriately for class
                                 z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
-                                z_stage.step()
 
-                        # Step to next queued scan point for all axes
-                        for stage in self.stages:
-                                stage.step()
-                        try:
-                                self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
-                        except zaber_device.DeviceTimeoutError, device_id:
-                                print "Device", device_id, "timed out during move for scan point", scan_point_num
-                                raise
+                                move_setting['z'] = point['z0']
+
+                        # Move to x,y,z
+                        self.move( move_setting )
+                        
 
                         # If this scan point has no time value, there is no video to record
                         if not point.has_key('t'):
@@ -703,28 +699,26 @@ class xthetaz_scancam(scancam_base):
                         
                         # If there is a second z-axis value, start the move to it as we start the video clip
                         # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
-                        if point.has_key('z1') and point['t'] != float(0.0):
+                        if point.has_key('z1') and clip_duration != 0:
                                 # The move from z0 to z1 should take the same amount of time as the video clip duration
                                 # But, the camera may require a little warm-up time from system call to the first frame
                                 # We'll add a small buffer of time to the z-axis move so that even if the move and clip
                                 # don't start together, at least they will end together.
-                                try:
-                                        target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
+                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
 
-                                        if target_z_speed > MAX_Z_MOVE_SPEED:
-                                                # Calculate clip duration, rounding up to next int
-                                                clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
-                                                print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
-                                                                      "And extending clip duration to:", clip_duration
-                                                target_z_speed = MAX_Z_MOVE_SPEED
-                                        # TODO: fix set_target_speed_in_units call to be type agnostic
-                                        z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
+                                if target_z_speed > MAX_Z_MOVE_SPEED:
+                                        # Calculate clip duration, rounding up to next int
+                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
+                                        print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
+                                                              "And extending clip duration to:", clip_duration
+                                        target_z_speed = MAX_Z_MOVE_SPEED
+                                # TODO: fix set_target_speed_in_units call to be type agnostic
+                                # TODO: change to be more scancam class appropriate
+                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
 
-                                        z_stage.move_absolute( point['z1'] )
-                                        z_stage.step()
-                                except ZeroDivisionError:
-                                        print "Error: cannot have move from z0 to z1 in 0 seconds. Skipping z1"
-                        
+                                move_setting = {'z': point['z1']}
+                                scancam.move( move_setting )
+                      
                         # TODO: Looks like binned cropping is in terms of binned coordinates, but 
                         # subsampled cropping is in terms of full sensor location (not subsampled) locations
                         # verify and handle appropriately
