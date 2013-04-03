@@ -415,19 +415,22 @@ xyz_scan = proto_scan
 
 
 class scancam_base():
-        '''scancam_base(self, stages)
+        '''scancam_base(stages, camera)
 
         Base class for scacncams.
 
         stages:         Dictionary of zaber_devices that comprise the scancam.
                         The keys are the axis identifiers. (e.g. 'X', 'theta',
                         'z')
+
+        camera:         Camera class derived from camera_base
         '''
 
 
-        def __init__(self, stages, scancam_id = None):
+        def __init__(self, stages, camera, scancam_id = None):
 
                 self.stages = stages
+                self.camera = camera
                 if scancam_id == None:
                         scancam_id = str(hash(self))
                 self.id = scancam_id
@@ -558,7 +561,7 @@ class xthetaz_scancam(scancam_base):
                 xtz_stages['theta'] = stages[1]
                 #xtz_stages['z'] = stages[2]
 
-                scancam_base.__init__(self, xtz_stages)
+                scancam_base.__init__(self, xtz_stages, camera)
 
                 self.used_negative_of_angle_last_time = False                
 
@@ -770,6 +773,9 @@ class xthetaz_scancam(scancam_base):
                                 print "Device", device_id, "timed out during second z move on scan point", scan_point_num
                                 raise
 
+                        
+#####################################################################################################################
+
 
 class camera_base():
         '''camera_base(   )
@@ -786,6 +792,11 @@ class camera_base():
                          binning = None,
                          cropping = None,
                          exposure_window = None):
+                '''camera_base.record_video(filename_base, clip_duration, subsampling = None, binning = None,
+                                 cropping = None, exposure_window = None)
+
+                Not very interesting. Intended as prototype for derived classes.
+                '''
                 pass                 
                                                  
         def get_sensor_resoultion(self):
@@ -819,11 +830,12 @@ class ueye_camera(camera_base):
         verbosity:      Verbosity
         '''
 
-        def __init__(cam_id = None,
+        def __init__(self,
+                     cam_id = None,
                      cam_serial_number = None,
                      cam_device_id = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
-                     verbosity = False):
+                     verbose = False):
                      
                 # Query general information from camera
                 if cam_device_id != None:
@@ -837,6 +849,7 @@ class ueye_camera(camera_base):
                         raise ValueError
 
                 # TODO: handle errors
+                if verbose: print "Camera sending info query:", camera_command
                 #rval = os.system( camera_command )
                 #if verbosity: print rval
                 # TODO: Parse response to populate camera properties
@@ -1000,7 +1013,9 @@ if __name__ == '__main__':
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
         #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-        scancam = xthetaz_scancam([ x_stage, theta_stage ])
+        camera = ueye_camera(cam_device_id = 1, verbose = True) 
+
+        scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
 
         # Put everything in try statement so that we can finally close the serial port on any error
         try:
