@@ -506,8 +506,8 @@ class scancam_base():
                         raise
 
 
-        def move_stages(self, stage_targets):
-                '''scancam_base.move_stages(scanpoint, verbosity = False)
+        def move_stages(self, stage_targets, wait_for_completion = True):
+                '''scancam_base.move_stages(stage_targets, wait_for_move_to_complete = True)
 
                 Move as many stages as are specified in the scanpoint and wait
                 until they complete the moves or timeout.
@@ -516,6 +516,9 @@ class scancam_base():
                                 ids. Values are the stage targets in scientific
                                 units.
 
+                wait_for_move_to_complete:  If true wait until all devices are
+                                no longer active before returning.
+                                
                 verbosity:      Verbosity
                 '''
                 for stage_id in stage_targets:
@@ -526,12 +529,16 @@ class scancam_base():
                         # Step to next queued scan point for all axes
                         self.stages[stage_id].step()
 
+                # Return if we don't have to wait for the moves
+                if not wait_for_completion: return
+                
                 # Wait for all moves to complete
                 try:
                         self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
                 except zaber_device.DeviceTimeoutError, device_id:
                         print "Device", device_id, "timed out during move for scan point", scan_point_num
                         raise
+
 
 
 class xthetaz_scancam(scancam_base):
@@ -648,7 +655,7 @@ class xthetaz_scancam(scancam_base):
                 return x_theta_point
 
 
-        def move(self, settings, verbosity = False):
+        def move(self, settings, wait_for_completion = True, verbosity = False):
                 '''xthetaz_scancam.move(settings)
 
                 Move as many of the scancam stages as are specified in settings
@@ -668,7 +675,7 @@ class xthetaz_scancam(scancam_base):
                         xtz_setting['z'] = settings['z']
 
                 if verbosity: print "Moving", self.get_id(), "to", xtz_setting
-                self.move_stages( xtz_setting )
+                self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
                         
         def scan_action(self, xyz_scan, verbosity = False):
@@ -724,7 +731,7 @@ class xthetaz_scancam(scancam_base):
                                 z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
 
                                 move_setting = {'z': point['z1']}
-                                scancam.move( move_setting )
+                                scancam.move( move_setting, wait_for_completion = False )
                       
                         # TODO: Looks like binned cropping is in terms of binned coordinates, but 
                         # subsampled cropping is in terms of full sensor location (not subsampled) locations
@@ -752,11 +759,11 @@ class xthetaz_scancam(scancam_base):
                                 raise
 
                         # Assure that the last z-axis move was completed
-                        #try:
-                                #z_stage.wait_for_action_to_complete( DEFAULT_STAGE_ACTION_TIMEOUT )
-                        #except zaber_device.DeviceTimeoutError, device_id:
-                                #print "Device", device_id, "timed out during second z move on scan point", scan_point_num
-                                #raise
+                        try:
+                                scancam.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                                raise
 
                         
 #####################################################################################################################

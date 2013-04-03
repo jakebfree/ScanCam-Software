@@ -25,21 +25,18 @@ try:
     # Start thread for serial commnunication
     thread.start_new_thread( ser.open, ())
 
-    scancam = xthetaz_scancam( [x_stage, theta_stage] )
+    camera = ueye_camera(cam_device_id = 1, verbose = True) 
+
+    scancam = xthetaz_scancam( [x_stage, theta_stage], camera )
 
     scancam.home()
 
-    scancam.move({'x':75, 'y':30})
+    scancam.move({'x':75, 'y':30}, False)
 
-    sleep(3)
+    scancam.wait_for_stages_to_complete_actions(100)
 
-    scancam.stop()
-
-    sleep(3)
-
-    scancam.home()
+    print "Done with move"
     
-   
 except KeyboardInterrupt:
     scancam.stop()
         
