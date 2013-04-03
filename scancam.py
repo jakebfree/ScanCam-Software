@@ -425,9 +425,21 @@ class scancam_base():
         '''
 
 
-        def __init__(self, stages):
+        def __init__(self, stages, scancam_id = None):
 
                 self.stages = stages
+                if scancam_id == None:
+                        scancam_id = str(hash(self))
+                self.id = scancam_id
+
+        def get_id(self):
+                '''get_id()
+
+                Returns identifier string for this scancam instance. If none was
+                given during construction, it defaults to a hash of the object
+                at that time.
+                '''
+                return self.id
 
 
         def wait_for_stages_to_complete_actions(self, timeout_secs):
@@ -489,7 +501,7 @@ class scancam_base():
                 '''scancam_base.move_stages(scanpoint, verbosity = False)
 
                 Move as many stages as are specified in the scanpoint and wait
-                for completion.
+                until they complete the moves or timeout.
 
                 stage_targets:  Dictionary of stage targets. Keys are the stage
                                 ids. Values are the stage targets in scientific
@@ -564,6 +576,9 @@ class xthetaz_scancam(scancam_base):
                                 by this functions, but other may be included.
 
                 verbosity:      Verbosity
+
+                Returns:        Dictionary in the format:
+                                        {'X': <x-axis value>, 'theta': <rotary-axis value>}
                 '''
                 
                 x = xy_point['x']
@@ -624,6 +639,30 @@ class xthetaz_scancam(scancam_base):
                 return x_theta_point
 
 
+        def move(self, settings, verbosity = False):
+                '''xthetaz_scancam.move(settings)
+
+                Move as many of the scancam stages as are specified in settings
+                and wait until they complete or timeout.
+
+                settings:       Dictionary with stage ids for keys and target
+                                locations for values.
+                '''
+                xtz_setting = {}
+                if settings.has_key('x') and settings.has_key('y'):
+                        xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']},
+                                                      verbosity = verbosity )
+                elif settings.has_key('x') or settings.has_key('y'):
+                        print "Error: Only have one of two necessary (x,y) coord needed to compute X and theta"
+                        raise KeyError
+
+                if settings.has_key('z'):
+                        xtz_setting['z'] = settings['z']
+
+                if verbosity: print "Moving", self.get_id(), "to", xtz_setting
+                self.move_stages( xtz_setting )
+
+                        
         def scan_action(self, xyz_scan, verbosity = False):
 
                 scan_point_num = 0

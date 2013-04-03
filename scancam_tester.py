@@ -29,7 +29,7 @@ try:
 
     scancam.home()
 
-    scancam.move_stages({'X':75, 'theta':90})
+    scancam.move({'x':75, 'y':30})
 
     sleep(3)
 
@@ -41,12 +41,10 @@ try:
     
    
 except KeyboardInterrupt:
-    pass
-
-
-finally:            
     scancam.stop()
         
+
+finally:            
     # Close serial connection before final exit
     print "Closing serial connection"
     ser.close()
