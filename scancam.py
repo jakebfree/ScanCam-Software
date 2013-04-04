@@ -827,13 +827,16 @@ class ueye_camera(camera_base):
                      cam_serial_number = None,
                      cam_device_id = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
+                     ueye_daemon_control_script = "/etc/init.d/ueyeusbdrc",
                      verbose = False):
 
                 self.cam_id = cam_id
                 self.cam_serial_number = cam_serial_number
                 self.cam_device_id = cam_device_id
+                self.ueye_daemon_control_script = ueye_daemon_control_script
 
-                # TODO: Check to see if ueye daemon is running
+                # Query status of ueye camera daemon
+                daemon_is_running = self.daemon_call('status')
                 
                 # Build info request command for camera
                 if cam_device_id != None:
@@ -892,6 +895,47 @@ class ueye_camera(camera_base):
                 # often. The workaround is to restart the daemon every X video calls
                 self.num_camera_calls_since_ueye_daemon_restart = 0
                 self.num_camera_calls_between_ueye_daemon_restarts = num_camera_calls_between_ueye_daemon_restarts
+
+
+        def daemon_call(self, command):
+                '''ueye_camera.daemon_call( command )
+
+                Sends a command to the ueye daemon manager script.
+                
+                command:   'start', 'stop', or 'status' string passed to the daemon
+                                   manager script.
+
+                Returns:   Binary value of whether daemon is running
+                '''
+                # Check for valid command
+                valid_commands = ('start', 'stop', 'status')
+                if not command in valid_commands:
+                        print "Error:", command, "is not a valid command to the ueye daemon control script"
+                        raise ValueError
+
+                # Build command and call daemon control script
+                daemon_script_call = self.ueye_daemon_control_script + " " + command
+                try:
+                        p = subprocess.Popen( daemon_script_call, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True )
+                        rval = p.wait()
+                except:
+                        print "Error with ueye daemon control script system call. Exiting"
+                        sys.exit(-1)
+                if rval != 0:
+                        print "Error: ueye daemon control script error. May not be installed? Exiting"
+                        sys.exit(-1)
+                response = p.stdout.read()
+                error = p.stderr.read()
+                if verbose:
+                        print daemon_script_call, "returned:", response
+                        print "And error response:", error
+                
+                # Parse response from call
+                daemon_is_running = False
+                if 'is running' in response or 'is already running' in response or 'is still running' in response:
+                        daemon_is_running = True
+                
+                return daemon_is_running
 
                 
         def record_video(self, filename_base, clip_duration, video_format_params = None ):
