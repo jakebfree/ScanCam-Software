@@ -870,11 +870,17 @@ class ueye_camera(camera_base):
                         raise ValueError
 
                 # Parse resolution data from returned camera info
+                sensor_width = 0
+                sensor_height = 0
                 for line in info_lines:
                         if 'Max Width' in line:
                                 sensor_width = line.split()[-1]
                         if 'Max Height' in line:
                                 sensor_height = line.split()[-1]
+                if not sensor_width or not sensor_height:
+                        print "Error parsing resolution data from camera info. Using defaults."
+                        sensor_width = 2560
+                        sensor_height = 1920
                 if verbose: print "Camera resolution =", sensor_width, "x", sensor_height
                 self.sensor_resolution = (sensor_width, sensor_height)
 
