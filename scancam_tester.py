@@ -9,7 +9,7 @@ from scancam import *
 WAIT_TIME = 100
 
 
-ser = serial_connection('COM3')
+ser = serial_connection('/dev/ttyUSB0')
 
 
 try:
