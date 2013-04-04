@@ -28,6 +28,7 @@ DEFAULT_STAGE_ACTION_TIMEOUT = 60       # seconds
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 CAMERA_STARTUP_TIME = 0.0               # seconds
+NUM_DAEMON_START_RETRIES = 3
 
 min_period_bt_scans = 1                 # in minutes
 verbose = True
@@ -837,6 +838,16 @@ class ueye_camera(camera_base):
 
                 # Query status of ueye camera daemon
                 daemon_is_running = self.daemon_call('status')
+
+                # If not running, start ueye daemon
+                if not daemon_is_running:
+                        for i in range(1, NUM_DAEMON_START_RETRIES+1):
+                                if verbose: print "At camera construction, ueye daemon not running. Calling start attempt:", i
+                                is_running = self.daemon_call('start')
+                                if is_running:
+                                        break
+                                sleep(1)
+                                
                 
                 # Build info request command for camera
                 if cam_device_id != None:
