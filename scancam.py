@@ -939,7 +939,8 @@ class ueye_camera(camera_base):
                 error = p.stderr.read()
                 if verbose:
                         print daemon_script_call, "returned:", response
-                        print "And error response:", error
+                        if error:
+                                print "Error response:", error
                 
                 # Parse response from call
                 daemon_is_running = False
