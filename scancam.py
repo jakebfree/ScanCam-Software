@@ -1,9 +1,9 @@
-import argparse, sys
+import sys
 from time import sleep, time, gmtime
 import thread
 import pickle
 import math
-import os
+import os, subprocess
 try:
     import argparse
 except ImportError, err:
@@ -34,19 +34,13 @@ verbose = True
 home_on_start = False
 just_one_scan = True
 skip_video = False
-comm_device = "COM3"
+comm_device = "/dev/ttyUSB0"
 scan_filename = "/etc/"
 skip_compression = True
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
-
-
-
-
-
-
-verbose_for_scan_build = True
+verbose_for_scan_build = False
 
 
 
@@ -838,8 +832,10 @@ class ueye_camera(camera_base):
                 self.cam_id = cam_id
                 self.cam_serial_number = cam_serial_number
                 self.cam_device_id = cam_device_id
+
+                # TODO: Check to see if ueye daemon is running
                 
-                # Query general information from camera
+                # Build info request command for camera
                 if cam_device_id != None:
                         camera_command = "idscam info --device " + str(cam_device_id)
                 elif cam_id != None:
@@ -850,13 +846,39 @@ class ueye_camera(camera_base):
                         print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
                         raise ValueError
 
-                # TODO: handle errors
+                # System call for camera info request
                 if verbose: print "Camera sending info query:", camera_command
-                #rval = os.system( camera_command )
-                #if verbosity: print rval
-                # TODO: Parse response to populate camera properties
-                self.sensor_resolution = (2560, 1920)
+                try:
+                        p = subprocess.Popen( camera_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True )
+                        rval = p.wait()
+                except:
+                        print "Error with camera info query system call. Exiting"
+                        sys.exit(-1)
 
+                info_lines = p.stdout.readlines()
+                error = p.stderr.read()
+                if verbose: 
+                        print "Camera info request returned", rval, "with this info:"
+                        for line in info_lines:
+                                print line
+                        print "and these errors:"
+                        print error
+                # Checking stderr for now. idscam info call does not yet return non-zero value
+                # TODO: Update to use rval instead when idscam is fixed
+                if error != '':
+                        print "Error opening camera on info request. Probably incorrect id"
+                        raise ValueError
+
+                # Parse resolution data from returned camera info
+                for line in info_lines:
+                        if 'Max Width' in line:
+                                sensor_width = line.split()[-1]
+                        if 'Max Height' in line:
+                                sensor_height = line.split()[-1]
+                if verbose: print "Camera resolution =", sensor_width, "x", sensor_height
+                self.sensor_resolution = (sensor_width, sensor_height)
+
+                # TODO: Parse info for other camera properties?
 
                 # Setup variables for implementing ueye daemon restarting workaround
                 # Context: Daemon fails badly after too many video calls without
@@ -1026,7 +1048,7 @@ if __name__ == '__main__':
         # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
         #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-        camera = ueye_camera(cam_device_id = 1, verbose = True) 
+        camera = ueye_camera(cam_id = 1, verbose = True) 
 
         scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
 
