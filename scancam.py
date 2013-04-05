@@ -35,7 +35,7 @@ verbose = True
 home_on_start = False
 just_one_scan = True
 skip_video = False
-comm_device = "/dev/ttyUSB0"
+comm_device = "/dev/ttyUSB1"
 scan_filename = "/etc/"
 skip_compression = True
 
@@ -1006,10 +1006,11 @@ class ueye_camera(camera_base):
                 # TODO: Value check parameters
 
                 # Start to build camera command with camera identifier
+                command = ""
                 if self.cam_device_id != None:
                         command = "idscam video --device " + str(self. cam_device_id)
                 elif self.cam_id != None:
-                        command = "idscam video --id ", str(self.cam_id)
+                        command = "idscam video --id " + str(self.cam_id)
                 elif self.cam_serial_number != None:
                         command = "idscam video --serial " + str(self.cam_serial_number)
                 else:
