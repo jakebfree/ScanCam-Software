@@ -3,7 +3,7 @@ from time import sleep, time, gmtime
 import thread
 import pickle
 import math
-import os, subprocess
+import os, subprocess, shutil
 try:
     import argparse
 except ImportError, err:
@@ -29,6 +29,7 @@ MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 CAMERA_STARTUP_TIME = 0.0               # seconds
 NUM_DAEMON_START_RETRIES = 3
+MAX_CAMERA_TRIES = 3
 
 min_period_bt_scans = 1                 # in minutes
 verbose = True
@@ -37,7 +38,7 @@ just_one_scan = True
 skip_video = False
 comm_device = "/dev/ttyUSB1"
 scan_filename = "/etc/"
-skip_compression = True
+skip_compression = False
 
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 
@@ -241,7 +242,7 @@ class six_well_scan(scan_base):
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
-                     clip_duration = 0,
+                     clip_duration = 3,
                      video_format_params = None,
                      verbosity=False):
 
@@ -1003,6 +1004,8 @@ class ueye_camera(camera_base):
                 parameters.
                 '''
 
+                # TODO: Check to see if it is time for a ueye daemon restart
+
                 # TODO: Value check parameters
 
                 # Start to build camera command with camera identifier
@@ -1042,6 +1045,12 @@ class ueye_camera(camera_base):
                                 command += " -ex1 " + str(video_format_params['exposure_window'][1])
                                 command += " -ey0 " + str(video_format_params['exposure_window'][2])
                                 command += " -ey1 " + str(video_format_params['exposure_window'][3])
+                        # If exposure window not explicitly spec'd, make it same as the cropping
+                        else:
+                                command += " -ex0 " + str(video_format_params['cropping'][0])
+                                command += " -ex1 " + str(video_format_params['cropping'][1])
+                                command += " -ey0 " + str(video_format_params['cropping'][2])
+                                command += " -ey1 " + str(video_format_params['cropping'][3])
 
                 command += " -d " + str(clip_duration)
                 command += " " + filename_base
@@ -1049,8 +1058,6 @@ class ueye_camera(camera_base):
                 if verbose: 
                         print "Camera command:", command
 
-                self.num_camera_calls_since_ueye_daemon_restart += 1
-                # TODO: Add camera system call
 
                 if skip_compression: return
 
