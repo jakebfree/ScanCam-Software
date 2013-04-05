@@ -1058,6 +1058,33 @@ class ueye_camera(camera_base):
                 if verbose: 
                         print "Camera command:", command
 
+                # Camera call to take folder full of raw frames
+                for i in range (1, MAX_CAMERA_TRIES+1):
+                        self.num_camera_calls_since_ueye_daemon_restart += 1
+                        rval = os.system( command )
+                        if rval == 0:
+                                if verbose: print "Video capture success"
+                                break
+
+                        if rval == 251:
+                                print "Camera call returned 'Camera not found' error."
+                                print "It was found at camera class construction, so maybe the uEye daemon is down. Restart it."
+                                #self.restart_daemon()
+
+                        # Camera call failed. Erase that directory so we can try again
+                        print "Error in camera video call. Returned", rval
+                        try:
+                                shutil.rmtree(filename_base)
+                        except OSError, (errno, errmsg):
+                                if errno == 2:
+                                        # Camera must not have created the directory so we don't have to delete it
+                                        pass
+                                else:
+                                        raise 
+                                
+                else:
+                        print "Tried camera call", i, "times unsuccessfully. Exiting."
+                        sys.exit(1)
 
                 if skip_compression: return
 
