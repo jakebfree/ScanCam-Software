@@ -1,4 +1,5 @@
 import thread
+import logging
 from time import sleep
 
 from serial_connection import *
@@ -6,9 +7,9 @@ from linear_slides import *
 from rotary_stages import *
 from scancam import *
 
-import idscam.common.syslogger
+import logging, idscam.common.syslogger
 
-log = idscam.common.syslogger.get_syslogger('scancam_tester')
+log = idscam.common.syslogger.get_syslogger('scancam_tester', level=logging.DEBUG)
 
 log.warning("warning log")
 log.info("info log")
