@@ -803,40 +803,36 @@ if __name__ == '__main__':
         #	z	z-axis target location in mm
         #	t	time in seconds to record video
 
-
-
-        # Create serial connection
-        try:
-                ser = serial_connection(comm_device)
-        except serial.SerialException, errmsg:
-                print "Error constructing serial connection:", errmsg
-                print "If we don't have a serial connection, we're dead in the water. Exiting."
-                sys.exit(1)
-                
-
-        # TODO Flush serial port and anything else necessary to have clean comm start
-
-
-        # Instantiate the axes
-        # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
-        x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
-
-        # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
-        theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
-
-        # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
-        #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
-
-        camera = ueye_camera(cam_id = 1, verbose = True) 
-
-        scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
-
         # Put everything in try statement so that we can finally close the serial port on any error
         try:
-                # Open serial connection
+                # Create serial connection
+                try:
+                        ser = serial_connection(comm_device)
+                except serial.SerialException, errmsg:
+                        print "Error constructing serial connection:", errmsg
+                        print "If we don't have a serial connection, we're dead in the water. Exiting."
+                        sys.exit(1)
+                        
+
+                # TODO Flush serial port and anything else necessary to have clean comm start
+
+                # Instantiate the axes
+                # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
+                x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
+
+                # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
+                theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+
+                # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
+                #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+
+                camera = ueye_camera(cam_id = 1, verbose = True) 
+
+                scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
+
+                # Open serial connection. This starts the queue handler
                 print "Opening serial connection in thread"
                 thread.start_new_thread( ser.open, ())
-
 
                 # TODO: Send command to reset stages to defaults
                 # TODO: Read in the default target speed for z so we can use it for z0 moves
