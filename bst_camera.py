@@ -1,11 +1,13 @@
 import sys, os, subprocess, shutil
 from time import sleep
 
+import logging, idscam.common.syslogger
+
+log = idscam.common.syslogger.get_syslogger('bst_camera', level=logging.DEBUG)
 
 NUM_DAEMON_START_RETRIES = 3
 MAX_CAMERA_TRIES = 3
 
-verbose = True
 skip_compression = False
 
 class camera_base():
@@ -77,7 +79,7 @@ class ueye_camera(camera_base):
                 # If not running, start ueye daemon
                 if not daemon_is_running:
                         for i in range(1, NUM_DAEMON_START_RETRIES+1):
-                                if verbose: print "At camera construction, ueye daemon not running. Calling start attempt:", i
+                                log.info("At camera construction, ueye daemon not running. Calling start attempt: %d" % i)
                                 is_running = self.daemon_call('start')
                                 if is_running:
                                         break
@@ -92,30 +94,30 @@ class ueye_camera(camera_base):
                 elif cam_serial_number != None:
                         camera_command = "idscam info --serial " + str(cam_serial_number)
                 else:
-                        print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
+                        log.critical( "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied.")
                         raise Exception
 
                 # System call for camera info request
-                if verbose: print "Camera sending info query:", camera_command
+                log.debug("Camera sending info query: %s" % camera_command)
                 try:
                         p = subprocess.Popen( camera_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True )
                         rval = p.wait()
                 except:
-                        print "Error with camera info query system call. Exiting"
+                        log.critical( "Error with camera info query system call. Exiting" )
                         sys.exit(-1)
 
                 info_lines = p.stdout.readlines()
                 error = p.stderr.read()
-                if verbose: 
-                        print "Camera info request returned", rval, "with this info:"
-                        for line in info_lines:
-                                print line
-                        print "and these errors:"
-                        print error
+
+                log.debug( "Camera info request returned " + str(rval) + " with this info:" )
+                for line in info_lines:
+                        log.debug( "    " + line)
+                log.debug( "and this error: " + error )
+
                 # Checking stderr for now. idscam info call does not yet return non-zero value
                 # TODO: Update to use rval instead when idscam is fixed
                 if error != '':
-                        print "Error opening camera on info request. Probably incorrect id"
+                        log.critical("Error opening camera on info request. Probably incorrect id")
                         raise Exception
 
                 # Parse resolution data from returned camera info
@@ -127,10 +129,10 @@ class ueye_camera(camera_base):
                         if 'Max Height' in line:
                                 sensor_height = line.split()[-1]
                 if not sensor_width or not sensor_height:
-                        print "Error parsing resolution data from camera info. Using defaults."
+                        log.warning( "Error parsing resolution data from camera info. Using defaults." )
                         sensor_width = 2560
                         sensor_height = 1920
-                if verbose: print "Camera resolution =", sensor_width, "x", sensor_height
+                log.info( "Camera resolution = " + str(sensor_width) + "x" + str(sensor_height) )
                 self.sensor_resolution = (sensor_width, sensor_height)
 
                 # TODO: Parse info for other camera properties?
@@ -156,7 +158,7 @@ class ueye_camera(camera_base):
                 # Check for valid command
                 valid_commands = ('start', 'stop', 'status')
                 if not command in valid_commands:
-                        print "Error:", command, "is not a valid command to the ueye daemon control script"
+                        log.critical( command + " is not a valid command to the ueye daemon control script" )
                         raise ValueError
 
                 # Build command and call daemon control script
@@ -165,17 +167,17 @@ class ueye_camera(camera_base):
                         p = subprocess.Popen( daemon_script_call, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True )
                         rval = p.wait()
                 except:
-                        print "Error with ueye daemon control script system call. Exiting"
+                        log.critical( "Error with ueye daemon control script system call. Exiting" )
                         sys.exit(-1)
                 if rval != 0:
-                        print "Error: ueye daemon control script error. May not be installed? Exiting"
+                        log.critical( "Error: ueye daemon control script error. May not be installed? Exiting")
                         sys.exit(-1)
                 response = p.stdout.read()
                 error = p.stderr.read()
-                if verbose:
-                        print daemon_script_call, "returned:", response
-                        if error:
-                                print "Error response:", error
+
+                log.debug( daemon_script_call + " returned: " + response )
+                if error:
+                        log.warning( "Daemon control script error:" + error )
                 
                 # Parse response from call
                 daemon_is_running = False
@@ -251,13 +253,13 @@ class ueye_camera(camera_base):
                 elif self.cam_serial_number != None:
                         command = "idscam video --serial " + str(self.cam_serial_number)
                 else:
-                        print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
+                        log.critical( "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied." )
                         raise ValueError
 
                 # TODO: Check window params against image size determined by binning or subsampling
 
                 if video_format_params.has_key('subsampling') and video_format_params.has_key('binning'):
-                        print "Error: subsampling and binning are mutually exclusive"
+                        log.critical( "Error: subsampling and binning are mutually exclusive" )
                         raise ValueError
                                                                                               
                 # Add optional video parameters to command
@@ -289,25 +291,24 @@ class ueye_camera(camera_base):
                 command += " -d " + str(clip_duration)
                 command += " " + filename_base
 
-                if verbose: 
-                        print "Camera command:", command
+                log.debug( "Camera command: " + command )
 
                 # Camera call to take folder full of raw frames
                 for i in range (1, MAX_CAMERA_TRIES+1):
                         self.num_camera_calls_since_ueye_daemon_restart += 1
                         rval = os.system( command )
                         if rval == 0:
-                                if verbose: print "Video capture success"
+                                log.debug("Video capture success")
                                 break
 
                         if rval == 251:
-                                print "Camera call returned 'Camera not found' error."
-                                print "It was found at camera class construction, so maybe the uEye daemon is down. Restart it."
-                                #self.restart_daemon()
+                                log.warning("Camera call returned 'Camera not found' error.")
+                                log.warning("It was found at camera class construction, so maybe the uEye daemon is down. Restart it.")
+                                #TODO:self.restart_daemon()
 
                         # Camera call failed. Erase that directory so we can try again
                         sleep(1)
-                        print "Error in camera video call. Returned", rval
+                        log.warning( "Error in camera video call. Returned " + str(rval) )
                         try:
                                 shutil.rmtree(filename_base)
                         except OSError, (errno, errmsg):
@@ -318,18 +319,18 @@ class ueye_camera(camera_base):
                                         raise 
                                 
                 else:
-                        print "Tried camera call", i, "times unsuccessfully. Exiting."
+                        log.critical( "Tried camera call %d times unsuccessfully. Exiting." % i )
                         sys.exit(1)
 
                 if skip_compression: return
 
                 # Create video clip from raw frames, '-c' arg specs clean up of raw files
-                if verbose: print "Starting video compression."
+                log.debug( "Starting video compression." )
                 comp_command = "raw2h264 -c " + filename_base
 
                 try:
                         ret_val = os.system( comp_command )
                 except:
                         raise
-                if verbose: print "Return val from compression was", ret_val
+                log.debug( "Return val from compression was " + str(ret_val))
 
