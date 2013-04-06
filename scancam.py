@@ -3,6 +3,7 @@ from time import sleep, time, gmtime
 import thread
 import pickle
 import math
+import serial
 import os, subprocess, shutil
 try:
     import argparse
@@ -18,6 +19,10 @@ from serial_connection import *
 from linear_slides import *
 from rotary_stages import *
 from scan_building_tools import *
+
+import idscam.common.syslogger
+
+log = idscam.common.syslogger.get_syslogger('scancam')
 
 
 
@@ -36,7 +41,7 @@ verbose = True
 home_on_start = False
 just_one_scan = True
 skip_video = False
-comm_device = "/dev/ttyUSB1"
+comm_device = "/dev/ttyUSB0"
 scan_filename = "/etc/"
 skip_compression = False
 
@@ -859,7 +864,7 @@ class ueye_camera(camera_base):
                         camera_command = "idscam info --serial " + str(cam_serial_number)
                 else:
                         print "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied."
-                        raise ValueError
+                        raise Exception
 
                 # System call for camera info request
                 if verbose: print "Camera sending info query:", camera_command
@@ -882,7 +887,7 @@ class ueye_camera(camera_base):
                 # TODO: Update to use rval instead when idscam is fixed
                 if error != '':
                         print "Error opening camera on info request. Probably incorrect id"
-                        raise ValueError
+                        raise Exception
 
                 # Parse resolution data from returned camera info
                 sensor_width = 0
@@ -1072,6 +1077,7 @@ class ueye_camera(camera_base):
                                 #self.restart_daemon()
 
                         # Camera call failed. Erase that directory so we can try again
+                        sleep(1)
                         print "Error in camera video call. Returned", rval
                         try:
                                 shutil.rmtree(filename_base)
@@ -1129,8 +1135,13 @@ if __name__ == '__main__':
 
 
         # Create serial connection
-        # TODO: handle exceptions
-        ser = serial_connection(comm_device)
+        try:
+                ser = serial_connection(comm_device)
+        except serial.SerialException, errmsg:
+                print "Error constructing serial connection:", errmsg
+                print "If we don't have a serial connection, we're dead in the water. Exiting."
+                sys.exit(1)
+                
 
         # TODO Flush serial port and anything else necessary to have clean comm start
 
