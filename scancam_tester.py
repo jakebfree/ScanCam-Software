@@ -6,6 +6,15 @@ from linear_slides import *
 from rotary_stages import *
 from scancam import *
 
+import idscam.common.syslogger
+
+log = idscam.common.syslogger.get_syslogger('scancam_tester')
+
+log.warning("warning log")
+log.info("info log")
+log.critical("critical log")
+log.debug("debug log")
+
 WAIT_TIME = 100
 
 
