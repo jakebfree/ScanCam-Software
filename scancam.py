@@ -21,9 +21,9 @@ from rotary_stages import *
 from scan_building_tools import *
 from bst_camera import *
 
-import idscam.common.syslogger
+import logging, idscam.common.syslogger
 
-log = idscam.common.syslogger.get_syslogger('scancam')
+log = idscam.common.syslogger.get_syslogger('scancam', level=logging.DEBUG)
 
 
 
@@ -203,7 +203,7 @@ class scan_base():
                                                 
                                         # We're done with that point, add it to the new scan
                                         self.scanpoints.append( scan_point )
-                                        if verbosity: print "Appended", scan_point
+                                        log.debug("Appended " + str(scan_point))
 
 
 
@@ -499,7 +499,7 @@ class scancam_base():
                 try:
                         self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
                 except zaber_device.DeviceTimeoutError, device_id:
-                        print "Device", device_id, "timed out during intial homing"
+                        log.warning("Device %d timed out during homing" % device_id)
                         raise
 
 
@@ -533,7 +533,7 @@ class scancam_base():
                 try:
                         self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
                 except zaber_device.DeviceTimeoutError, device_id:
-                        print "Device", device_id, "timed out during move for scan point", scan_point_num
+                        log.critical("Device %d timed out during move for scan point %d" % (device_id, scan_point_num))
                         raise
 
 
@@ -637,7 +637,7 @@ class xthetaz_scancam(scancam_base):
                                 theta = 180.0
                         else:
                                 theta = 0.0
-                        if verbosity: print "Incapable of reaching location (%f, %f). Setting theta=%f" % (x, y, theta)
+                        log.debug("Incapable of reaching location (%f, %f). Setting theta=%f" % (x, y, theta))
 
                 X = x + self.arm_length * math.sin( math.radians( theta ) )
 
@@ -651,13 +651,13 @@ class xthetaz_scancam(scancam_base):
                 # If X is still out of bounds, it must be unachievable. Raise exception
                 # TODO: Switch to user defined exception
                 if X < self.min_X or X > self.max_X:
-                        print "Unable to translate (%f, %f) to X-theta coordinates." % (x,y)
-                        print "Calculated X value of %f is out of range." % X
+                        log.critical("Unable to translate (%f, %f) to X-theta coordinates." % (x,y))
+                        log.critical("Calculated X value of %f is out of range." % X)
                         raise SyntaxError
                 
                 # Put x-theta coord in scan list
                 x_theta_point = { 'X': X, 'theta': theta }
-                if verbosity: print "Converted to", x_theta_point, "from", xy_point 
+                log.debug("Converted to " + str(x_theta_point) + " from " + str(xy_point) )
 
                 return x_theta_point
 
@@ -675,13 +675,14 @@ class xthetaz_scancam(scancam_base):
                 if settings.has_key('x') and settings.has_key('y'):
                         xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']}, verbosity = verbosity )
                 elif settings.has_key('x') or settings.has_key('y'):
-                        print "Error: Only have one of two necessary (x,y) coord needed to compute X and theta"
+                        log.critical("Error: Only have one of two necessary (x,y) coord needed to compute X and theta")
                         raise KeyError
 
                 if settings.has_key('z'):
                         xtz_setting['z'] = settings['z']
 
-                if verbosity: print "Moving", self.get_id(), "to", xtz_setting
+                my_id = self.get_id()
+                log.debug("Moving " + str(my_id) + " to " + str(xtz_setting))
                 self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
                         
@@ -691,7 +692,7 @@ class xthetaz_scancam(scancam_base):
                 for point in xyz_scan.scanpoints:
 
                         scan_point_num += 1
-                        if verbose: print "Step", scan_point_num, point
+                        log.debug("Step " + str(scan_point_num) + " " + str(point))
 
                         # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
                         
@@ -713,7 +714,7 @@ class xthetaz_scancam(scancam_base):
                         # Probably a transitional point that is just there to avoid crashing
                         # into walls.
                         if not point.has_key('t'):
-                                if verbose: print "Point has no time value. Skipping z1 and video"
+                                log.info("Point has no time value. Skipping z1 and video")
                                 continue
                         
                         clip_duration = int(point['t'])
@@ -730,8 +731,8 @@ class xthetaz_scancam(scancam_base):
                                 if target_z_speed > MAX_Z_MOVE_SPEED:
                                         # Calculate clip duration, rounding up to next int
                                         clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
-                                        print target_z_speed, "is too fast. Setting to max speed:", MAX_Z_MOVE_SPEED, \
-                                                              "And extending clip duration to:", clip_duration
+                                        log.warning( str(target_z_speed) + " is too fast. Setting to max speed: " + str(MAX_Z_MOVE_SPEED) + \
+                                                              " And extending clip duration to: " + str(clip_duration))
                                         target_z_speed = MAX_Z_MOVE_SPEED
                                 # TODO: fix set_target_speed_in_units call to be type agnostic
                                 # TODO: change to be more scancam class appropriate
@@ -753,7 +754,7 @@ class xthetaz_scancam(scancam_base):
                                 filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
 
                         if skip_video:
-                                print "Skipping video. Sleeping", clip_duration, "instead"
+                                log.debug("Skipping video. Sleeping %d instead" % clip_duration)
                                 sleep(clip_duration)
                                 continue
 
@@ -769,7 +770,7 @@ class xthetaz_scancam(scancam_base):
                         try:
                                 scancam.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
                         except zaber_device.DeviceTimeoutError, device_id:
-                                print "Device", device_id, "timed out during second z move on scan point", scan_point_num
+                                log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
                                 raise
 
                         
@@ -809,8 +810,8 @@ if __name__ == '__main__':
                 try:
                         ser = serial_connection(comm_device)
                 except serial.SerialException, errmsg:
-                        print "Error constructing serial connection:", errmsg
-                        print "If we don't have a serial connection, we're dead in the water. Exiting."
+                        log.critical("Error constructing serial connection: " + errmsg)
+                        log.critical("If we don't have a serial connection, we're dead in the water. Exiting.")
                         sys.exit(1)
                         
 
@@ -831,7 +832,7 @@ if __name__ == '__main__':
                 scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
 
                 # Open serial connection. This starts the queue handler
-                print "Opening serial connection in thread"
+                log.debug("Opening serial connection in thread")
                 thread.start_new_thread( ser.open, ())
 
                 # TODO: Send command to reset stages to defaults
@@ -854,7 +855,7 @@ if __name__ == '__main__':
                         
                                
                         # Walk through scan
-                        if verbose: print "Starting scan number", completed_scans + 1
+                        log.debug("Starting scan number" + str(completed_scans + 1))
                         scancam.scan_action(xyz_scan, verbosity=verbose)
   
                         completed_scans += 1
@@ -863,7 +864,7 @@ if __name__ == '__main__':
                                 break
                         
         except KeyboardInterrupt:
-                print "Completed", completed_scans, "scans."
+                 log.debug("Completed %d scans." % completed_scans)
 
 
         finally:
@@ -871,7 +872,7 @@ if __name__ == '__main__':
                 scancam.stop()
                 
                 # Close serial connection before final exit
-                print "Closing serial connection"
+                log.info("Closing serial connection")
                 ser.close()
-                print "Connection closed"
+                log.info("Connection closed")
 
