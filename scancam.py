@@ -442,7 +442,7 @@ xyz_scan = proto_scan
 
 
 class scancam_base():
-        '''scancam_base(stages, camera)
+        '''scancam_base(stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100)
 
         Base class for scacncams.
 
@@ -451,16 +451,25 @@ class scancam_base():
                         'z')
 
         camera:         Camera class derived from camera_base
+        
+        scancam_id:     Identifier string for class
+
+        camera_warmup:  Seconds that it takes to warm up camera. Used to calculate second
+                        depth move speed so that the move fudges closer to the clip duration
+
+        stage_timeout:  Number of seconds to wait for stage moves before timing out.
         '''
 
 
-        def __init__(self, stages, camera, scancam_id = None):
+        def __init__(self, stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100):
 
                 self.stages = stages
                 self.camera = camera
                 if scancam_id == None:
                         scancam_id = str(hash(self))
                 self.id = scancam_id
+                self.camera_warmup = camera_warmup
+                self.stage_timeout = stage_timeout
 
         def get_id(self):
                 '''get_id()
@@ -472,17 +481,18 @@ class scancam_base():
                 return self.id
 
 
-        def wait_for_stages_to_complete_actions(self, timeout_secs):
-                '''scancam_base.wait_for_stages_to_complete_actions(timeout_secs)
+        def wait_for_stages_to_complete_actions(self):
+                '''scancam_base.wait_for_stages_to_complete_actions()
 
-                For each scancam stage, wait until .in_action() returns False
+                For each scancam stage, wait until .in_action() returns False, and timeout
+                if it takes too long.
                 '''
                 # TODO: Fix timing such that if takes first stage X seconds to
                 # get to its target then next stage doesn't have a cumulative
                 # wait of up to X + timeout_secs
                 try:
                         for stage in self.stages.values():
-                                stage.wait_for_action_to_complete( timeout_secs )
+                                stage.wait_for_action_to_complete( self.stage_timeout )
                 except zaber_device.DeviceTimeoutError, stage_id:
                         # If one device times out, stop all of them
                         for stage in self.stages.values():
@@ -521,7 +531,7 @@ class scancam_base():
                         stage.step()
 
                 try:
-                        self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        self.wait_for_stages_to_complete_actions()
                 except zaber_device.DeviceTimeoutError, device_id:
                         log.warning("Device %d timed out during homing" % device_id)
                         raise
@@ -553,7 +563,7 @@ class scancam_base():
                 
                 # Wait for all moves to complete
                 try:
-                        self.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                        self.wait_for_stages_to_complete_actions()
                 except zaber_device.DeviceTimeoutError, device_id:
                         log.critical("Device %d timed out during move for scan point %d" % (device_id, scan_point_num))
                         raise
@@ -571,7 +581,7 @@ class scancam_base():
         
 
 class xthetaz_scancam(scancam_base):
-        '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0,
+        '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100)
 
         Scancam with 200mm x-axis, rotary stage, and 10mm z-axis. The z-axis and
         camera are mounted to the rotary axis and can swing around to where the
@@ -589,9 +599,14 @@ class xthetaz_scancam(scancam_base):
         min_X:          Minimum acceptable setting for the X-axis.
 
         max_X:          Maximum acceptable setting for the X-axis.
+
+        camera_warmup:  Seconds that it takes to warm up camera. Used to calculate second
+                        depth move speed so that the move fudges closer to the clip duration
+
+        stage_timeout:  Number of seconds to wait for stage moves before timing out.
         '''
 
-        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0):
+        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100):
 
                 self.arm_length = arm_length
                 self.min_X = min_X
@@ -603,7 +618,7 @@ class xthetaz_scancam(scancam_base):
                 xtz_stages['theta'] = stages[1]
                 #xtz_stages['z'] = stages[2]
 
-                scancam_base.__init__(self, xtz_stages, camera)
+                scancam_base.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, stage_timeout = stage_timeout)
 
                 self.used_negative_of_angle_last_time = False                
 
@@ -746,11 +761,11 @@ class xthetaz_scancam(scancam_base):
                                 # But, the camera may require a little warm-up time from system call to the first frame
                                 # We'll add a small buffer of time to the z-axis move so that even if the move and clip
                                 # don't start together, at least they will end together.
-                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t'])+CAMERA_STARTUP_TIME)
+                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t']) + self.camera_warmup)
 
                                 if target_z_speed > MAX_Z_MOVE_SPEED:
                                         # Calculate clip duration, rounding up to next int
-                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - CAMERA_STARTUP_TIME)
+                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - self.camera_warmup)
                                         log.warning( str(target_z_speed) + " is too fast. Setting to max speed: " + str(MAX_Z_MOVE_SPEED) + \
                                                               " And extending clip duration to: " + str(clip_duration))
                                         target_z_speed = MAX_Z_MOVE_SPEED
@@ -783,7 +798,7 @@ class xthetaz_scancam(scancam_base):
 
                         # Assure that the last z-axis move was completed
                         try:
-                                scancam.wait_for_stages_to_complete_actions( DEFAULT_STAGE_ACTION_TIMEOUT )
+                                scancam.wait_for_stages_to_complete_actions()
                         except zaber_device.DeviceTimeoutError, device_id:
                                 log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
                                 raise
@@ -857,7 +872,10 @@ if __name__ == '__main__':
 
                 camera = ueye_camera( cam_id = 1, log_level = log.getEffectiveLevel() ) 
 
-                scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
+                scancam = xthetaz_scancam( [ x_stage, theta_stage ], 
+                                           camera, 
+                                           stage_timeout = args.stage_timeout,
+                                           camera_warmup = args.camera_warmup )
 
                 # Open serial connection. This starts the queue handler
                 log.debug("Opening serial connection in thread")
