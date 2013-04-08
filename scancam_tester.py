@@ -14,10 +14,31 @@ import logging, idscam.common.syslogger
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='INFO', help="Level of logging")
+parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='DEBUG', help="Level of logging")
 parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
 parser.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
 parser.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
+
+print "log level:", str(args.log_level)
+
+log = idscam.common.syslogger.get_syslogger('scancam_tester')
+# Set up logging
+if args.log_level == 'DEBUG':
+        log.setLevel(logging.DEBUG)
+elif args.log_level == 'INFO':
+        log.setLevel(logging.INFO)
+elif args.log_level == 'WARNING':
+        log.setLevel(logging.WARNING)
+elif args.log_level == 'CRITICAL':
+        log.setLevel(logging.CRITICAL)
+else:
+        print "Logging level not available. Exiting."
+        sys.exit(1)
+
+log.critical("Logging critical messages.")
+log.warning("Logging warning messages.")
+log.info("Logging info messages")
+log.debug("Logging debug messages")
 
 # Log all variables handled by config file and command line args
 log.info("Variables handled by config file and command line args:")
@@ -25,20 +46,9 @@ arg_dict = vars(args)
 for arg in arg_dict:
         log.info("    " + arg + ": " + str(arg_dict[arg]))
 
-# Set up logging
-if args.log_level == 'DEBUG':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.DEBUG)
-elif args.log_level == 'INFO':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.INFO)
-elif args.log_level == 'WARNING':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.WARNING)
-elif args.log_level == 'CRITICAL':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.CRITICAL)
-else:
-        print "Logging level not available. Exiting."
-        sys.exit(1)
+sys.exit(0)
 
-ser = serial_connection(arg.serial_dev)
+ser = serial_connection(args.serial_dev)
 
 
 try:
@@ -54,7 +64,11 @@ try:
     # Start thread for serial commnunication
     thread.start_new_thread( ser.open, ())
 
-    camera = ueye_camera(cam_device_id = 1, verbose = True) 
+    camera = ueye_camera(cam_device_id = 1, log_level = log.getEffectiveLevel() ) 
+
+    print "status:", camera.daemon_call('status')
+    print "start:", camera.daemon_call('start')
+    camera.restart_daemon()
 
     scancam = xthetaz_scancam( [x_stage, theta_stage], camera )
 
