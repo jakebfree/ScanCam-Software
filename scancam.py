@@ -26,7 +26,6 @@ import logging, idscam.common.syslogger
 
 
 
-
 # Parse config file and command line arguments
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument('-p', '--period', type=float, default=0.0, help="Minimum number of minutes between the start of scans. If the scan itself takes longer than the period, they will run back-to-back. Defaults to 0.")
@@ -134,7 +133,7 @@ class scan_base():
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
                                            verbose = False):
                 '''scan_base.build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
-                                num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbosity = 0)
+                                num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbose = False)
 
                 corners:        List of dictionaries each of which represents a corner location in the format:
                                 {'x'=<>, 'y'=<>, 'area_id'=<>}
@@ -247,7 +246,7 @@ class scan_base():
                 
 class six_well_scan(scan_base):
         '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
-                        clip_duration = 10, verbosity=False)
+                        clip_duration = 10, verbose=False)
 
         Takes the top-left corner of the top-left well and generates a scan based
         on the known geometry of the 6-well plate measured from the SolidWorks model
@@ -317,7 +316,7 @@ class six_well_scan(scan_base):
 
 
 class six_well_just_corners_scan(scan_base):
-        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbosity=False)
+        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False)
 
         Modified version of 6_well_scan that includes only the four corners of
         each well instead of a full scan. It is simplified this way in order to
@@ -551,8 +550,6 @@ class scancam_base():
 
                 wait_for_move_to_complete:  If true wait until all devices are
                                 no longer active before returning.
-                                
-                verbosity:      Verbosity
                 '''
                 for stage_id in stage_targets:
                         # Enqueue scan point move commands
@@ -622,8 +619,8 @@ class xthetaz_scancam(scancam_base):
                 self.used_negative_of_angle_last_time = False                
 
 
-        def xy2xtheta(self, xy_point, verbosity = 0):
-                '''xthetaz_scancam.xy2xtheta(xy_point, verbosity = 0)
+        def xy2xtheta(self, xy_point):
+                '''xthetaz_scancam.xy2xtheta(xy_point)
 
                 Use physical geometry of the scancam to translate from a
                 cartesian xy coord point (in mm) to the one implemented by our
@@ -633,8 +630,6 @@ class xthetaz_scancam(scancam_base):
                 xy_point:       Dictionary containing the x and y values for the
                                 scan point. Only the 'x' and 'y' keys are used
                                 by this functions, but other may be included.
-
-                verbosity:      Verbosity
 
                 Returns:        Dictionary in the format:
                                         {'X': <x-axis value>, 'theta': <rotary-axis value>}
@@ -698,7 +693,7 @@ class xthetaz_scancam(scancam_base):
                 return x_theta_point
 
 
-        def move(self, settings, wait_for_completion = True, verbosity = False):
+        def move(self, settings, wait_for_completion = True):
                 '''xthetaz_scancam.move(settings)
 
                 Move as many of the scancam stages as are specified in settings
@@ -709,7 +704,7 @@ class xthetaz_scancam(scancam_base):
                 '''
                 xtz_setting = {}
                 if settings.has_key('x') and settings.has_key('y'):
-                        xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']}, verbosity = verbosity )
+                        xtz_setting = self.xy2xtheta( {'x': settings['x'], 'y': settings['y']} )
                 elif settings.has_key('x') or settings.has_key('y'):
                         log.critical("Error: Only have one of two necessary (x,y) coord needed to compute X and theta")
                         raise KeyError
