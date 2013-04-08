@@ -25,62 +25,50 @@ import logging, idscam.common.syslogger
 
 
 
-
-# Parse config file and command line arguments
-parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
-parser.add_argument('-p', '--period', type=float, default=0.0, help="Minimum number of minutes between the start of scans. If the scan itself takes longer than the period, they will run back-to-back. Defaults to 0.")
-parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='INFO', help="Level of logging. Defaults to INFO")
-looping_group = parser.add_mutually_exclusive_group()
-looping_group.add_argument('-n', '--num-scans', type=int, default=1, help="Number of scans to perform before exiting. Defaults to 1")
-looping_group.add_argument('-c', '--continuous', action="store_true", help="Take scans continually without exiting")
-parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
-
-# The configs group of arguments is intended to be read from a configuration file.
-# They may be overwritten at the command line (useful during development).
-# TODO: make config file location configurable
-configs = parser.add_argument_group('configs', "Arguments generally read from scancam.conf file. May be overridden at command line")
-configs.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
-configs.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
-configs.add_argument('--camera-warmup', type=float, default=0.0, help="Time in seconds (float) between camera system call and beginning of clip. Used to adjust speed of video-through-depth z-axis move") 
-
-# The values are ready from the configuration file first in the list so that
-# command line arguments may supercede them if given
-args = parser.parse_args(['@scancam.conf'] + sys.argv[1:])
-
-
-
-log = idscam.common.syslogger.get_syslogger('scancam')
-# Set up logging
-if args.log_level == 'DEBUG':
-        log.setLevel(logging.DEBUG)
-elif args.log_level == 'INFO':
-        log.setLevel(logging.INFO)
-elif args.log_level == 'WARNING':
-        log.setLevel(logging.WARNING)
-elif args.log_level == 'CRITICAL':
-        log.setLevel(logging.CRITICAL)
-else:
-        print "Logging level not available. Exiting."
-        sys.exit(1)
-
-
-DEFAULT_STAGE_ACTION_TIMEOUT = args.stage_timeout       # seconds
-CAMERA_STARTUP_TIME = args.camera_warmup                # seconds
-
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
-
-
-
 video_location = "/home/freemajb/data/scancam_proto_videos/"
-
 verbose_for_scan_build = False
 
-# Log all variables handled by config file and command line args
-log.info("Variables handled by config file and command line args:")
-arg_dict = vars(args)
-for arg in arg_dict:
-        log.info("    " + arg + ": " + str(arg_dict[arg]))
+
+def parse_arguments( argv ):
+        # Parse config file and command line arguments
+        parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+        parser.add_argument('-p', '--period', type=float, default=0.0, help="Minimum number of minutes between the start of scans. If the scan itself takes longer than the period, they will run back-to-back. Defaults to 0.")
+        parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='INFO', help="Level of logging. Defaults to INFO")
+        looping_group = parser.add_mutually_exclusive_group()
+        looping_group.add_argument('-n', '--num-scans', type=int, default=1, help="Number of scans to perform before exiting. Defaults to 1")
+        looping_group.add_argument('-c', '--continuous', action="store_true", help="Take scans continually without exiting")
+        parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
+
+        # The configs group of arguments is intended to be read from a configuration file.
+        # They may be overwritten at the command line (useful during development).
+        # TODO: make config file location configurable
+        configs = parser.add_argument_group('configs', "Arguments generally read from scancam.conf file. May be overridden at command line")
+        configs.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
+        configs.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
+        configs.add_argument('--camera-warmup', type=float, default=0.0, help="Time in seconds (float) between camera system call and beginning of clip. Used to adjust speed of video-through-depth z-axis move") 
+
+        # The values are ready from the configuration file first in the list so that
+        # command line arguments may supercede them if given
+        return parser.parse_args(['@scancam.conf'] + argv[1:])
+
+        log = idscam.common.syslogger.get_syslogger('scancam')
+        # Set up logging
+        if args.log_level == 'DEBUG':
+                log.setLevel(logging.DEBUG)
+        elif args.log_level == 'INFO':
+                log.setLevel(logging.INFO)
+        elif args.log_level == 'WARNING':
+                log.setLevel(logging.WARNING)
+        elif args.log_level == 'CRITICAL':
+                log.setLevel(logging.CRITICAL)
+        else:
+                print "Logging level not available. Exiting."
+                sys.exit(1)
+
+
+
 
 
 class scan_base():
@@ -822,7 +810,14 @@ if __name__ == '__main__':
         # scancam [OPTION]... [SCANFILE]...
         #
         # -p, --minimum-period in minutes
+        args = parse_arguments(sys.argv)
 
+
+        # Log all variables handled by config file and command line args
+        log.info("Variables handled by config file and command line args:")
+        arg_dict = vars(args)
+        for arg in arg_dict:
+                log.info("    " + arg + ": " + str(arg_dict[arg]))
 
 
         # scan is a list of scanpoints represented as dictionaries with the keys:
