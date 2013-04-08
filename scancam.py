@@ -132,7 +132,7 @@ class scan_base():
 
         def build_scan_from_target_corners(self, corners, target_width = 19.1, target_height = 26.8,
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
-                                           verbosity = 0):
+                                           verbose = False):
                 '''scan_base.build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
                                 num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbosity = 0)
 
@@ -152,7 +152,7 @@ class scan_base():
                                 args. It may be useful for verifying the x-y calibration of the scan
                                 since the edges of the wells are likely to be visible in the camera FOV
 
-                verbosity:      Verbosity
+                verbose:        Verbosity
                 
                 
                 Builds an scan of points across a list of equally sized rectangular targets.
@@ -239,7 +239,7 @@ class scan_base():
                                                 
                                         # We're done with that point, add it to the new scan
                                         self.scanpoints.append( scan_point )
-                                        log.debug("Appended " + str(scan_point))
+                                        if verbose: print "Appended " + str(scan_point)
 
 
 
@@ -266,7 +266,7 @@ class six_well_scan(scan_base):
         video_format_params:    Dictionary of video params to be passed to camera when
                                 recording video clips
 
-        verbosity:              Verbosity
+        verbose:                Verbose
 
         Assumes that the orientation of the plate is such that it is vertical
         (long axis of plate and wells is in y-direction) and the top-left well is
@@ -281,7 +281,7 @@ class six_well_scan(scan_base):
                      num_v_scan_points = 1,
                      clip_duration = 3,
                      video_format_params = None,
-                     verbosity=False):
+                     verbose = False):
 
                 self.calibrated_for_z = False
 
@@ -309,7 +309,7 @@ class six_well_scan(scan_base):
                                                          target_height = 26.8,
                                                          num_h_scan_points = num_h_scan_points,
                                                          num_v_scan_points = num_v_scan_points,
-                                                         verbosity = verbosity )
+                                                         verbose = verbose )
 
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
@@ -336,7 +336,7 @@ class six_well_just_corners_scan(scan_base):
         
         clip_duration:          Duration in seconds to record video for each scan point
 
-        verbosity:              Verbosity
+        verbose:                Verbosity
 
         Assumes that the orientation of the plate is such that it is vertical
         (long axis of plate and wells is in y-direction) and the top-left well is
@@ -349,7 +349,7 @@ class six_well_just_corners_scan(scan_base):
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
-                     verbosity=False):
+                     verbose = False):
 
                 # Build list of top left well corners from top-left corner of top-left well and deltas
                 # TODO: make into function in parent class
@@ -366,7 +366,7 @@ class six_well_just_corners_scan(scan_base):
                                                          num_h_scan_points = num_h_scan_points,
                                                          num_v_scan_points = num_v_scan_points,
                                                          just_corners = True,
-                                                         verbosity = verbosity )
+                                                         verbose = verbose )
 
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
@@ -440,7 +440,7 @@ proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
                           num_v_scan_points = 1,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
-                          verbosity = verbose_for_scan_build )
+                          verbose = verbose_for_scan_build )
 
 
 # HACK to set the scan before we import from file
@@ -722,7 +722,7 @@ class xthetaz_scancam(scancam_base):
                 self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
                         
-        def scan_action(self, xyz_scan, verbosity = False):
+        def scan_action(self, xyz_scan):
 
                 scan_point_num = 0
                 for point in xyz_scan.scanpoints:
@@ -893,7 +893,7 @@ if __name__ == '__main__':
                                
                         # Walk through scan
                         log.debug("Starting scan number" + str(completed_scans + 1))
-                        scancam.scan_action(xyz_scan, verbosity=verbose)
+                        scancam.scan_action(xyz_scan)
   
                         completed_scans += 1
 
