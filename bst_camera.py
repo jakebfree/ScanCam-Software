@@ -7,6 +7,8 @@ log = idscam.common.syslogger.get_syslogger('bst_camera')
 
 NUM_DAEMON_START_RETRIES = 3
 MAX_CAMERA_TRIES = 3
+NUM_DAEMON_STOP_TRIES = 3
+NUM_DAEMON_START_TRIES = 3
 
 skip_compression = False
 
@@ -188,7 +190,40 @@ class ueye_camera(camera_base):
                 
                 return daemon_is_running
 
+
+        def restart_daemon(self):
+                '''ueye_camera.restart_daemon()
+
+                Restart the ueye camera handling daemon.
+                '''
+                log.info("Restarting ueye camera daemon.")
+                # First try stopping it normally
+                daemon_is_running = self.daemon_call('stop')
+                if daemon_is_running:
+                        # Didn't stop normally, trying a some more times with 'force-stop' option
+                        for i in range(1, NUM_DAEMON_STOP_TRIES):
+                                log.debug("Daemon didn't stop. Trying again with 'force-stop' option")
+                                daemon_is_running = self.daemon_call('force-stop')
+                                if not daemon_is_running:
+                                        break
+
+                # If it is still running after all of our tries, return. There is nothing more we can do.
+                if daemon_is_running:
+                        log.warning("Unable to stop camera daemon. Restart unsuccessful")
+                        return
                 
+                # Daemon is off, let's restart it
+                for i in range(1, NUM_DAEMON_START_TRIES+1):
+                        log.debug("Restarting daemon")
+                        daemon_is_running = self.daemon_call('start') 
+                        if daemon_is_running: 
+                                log.debug("Restarted ueye camera daemon successfully.")
+                                return
+                
+                log.warning("Unable to restart ueye camera daemon")
+                
+
+
         def record_video(self, filename_base, clip_duration, video_format_params = None ):
                 '''ueye_camera.record_video(filename_base, clip_duration, video_format_params = None)
 
