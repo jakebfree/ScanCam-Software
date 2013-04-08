@@ -3,7 +3,7 @@ from time import sleep
 
 import logging, idscam.common.syslogger
 
-log = idscam.common.syslogger.get_syslogger('bst_camera', level=logging.DEBUG)
+log = idscam.common.syslogger.get_syslogger('bst_camera')
 
 NUM_DAEMON_START_RETRIES = 3
 MAX_CAMERA_TRIES = 3
@@ -66,7 +66,9 @@ class ueye_camera(camera_base):
                      cam_device_id = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
                      ueye_daemon_control_script = "/etc/init.d/ueyeusbdrc",
-                     verbose = False):
+                     log_level = logging.INFO):
+
+                log.setLevel(log_level)
 
                 self.cam_id = cam_id
                 self.cam_serial_number = cam_serial_number

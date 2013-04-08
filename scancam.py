@@ -67,7 +67,6 @@ else:
 DEFAULT_STAGE_ACTION_TIMEOUT = args.stage_timeout       # seconds
 CAMERA_STARTUP_TIME = args.camera_warmup                # seconds
 
-verbose = True
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
 
@@ -849,6 +848,12 @@ if __name__ == '__main__':
 
                 # TODO Flush serial port and anything else necessary to have clean comm start
 
+                # Derive verbosity for stages from log level
+                if args.log_level == 'DEBUG':
+                        verbose = True
+                else:
+                        verbose = False
+
                 # Instantiate the axes
                 # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
                 x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
@@ -859,7 +864,7 @@ if __name__ == '__main__':
                 # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
                 #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-                camera = ueye_camera(cam_id = 1, verbose = True) 
+                camera = ueye_camera( cam_id = 1, log_level = log.getEffectiveLevel() ) 
 
                 scancam = xthetaz_scancam([ x_stage, theta_stage ], camera)
 
