@@ -160,7 +160,7 @@ class ueye_camera(camera_base):
                 Returns:   Binary value of whether daemon is running
                 '''
                 # Check for valid command
-                valid_commands = ('start', 'stop', 'status')
+                valid_commands = ('start', 'stop', 'status', 'force-stop')
                 if not command in valid_commands:
                         log.critical( command + " is not a valid command to the ueye daemon control script" )
                         raise ValueError
@@ -173,15 +173,24 @@ class ueye_camera(camera_base):
                 except:
                         log.critical( "Error with ueye daemon control script system call. Exiting" )
                         sys.exit(-1)
-                if rval != 0:
+
+                # Handle return value
+                if rval == 0:
+                        pass
+                elif rval == 2 or rval == 4:
+                        # Returned value signifying that it is aready running(2), or didn't terminate(4)
+                        return True
+                else:
                         log.critical( "Error: ueye daemon control script error. May not be installed? Exiting")
                         sys.exit(-1)
+
                 response = p.stdout.read()
                 error = p.stderr.read()
 
                 log.debug( daemon_script_call + " returned: " + response )
                 if error:
                         log.warning( "Daemon control script error:" + error )
+                        raise RuntimeError
                 
                 # Parse response from call
                 daemon_is_running = False
@@ -198,12 +207,21 @@ class ueye_camera(camera_base):
                 '''
                 log.info("Restarting ueye camera daemon.")
                 # First try stopping it normally
-                daemon_is_running = self.daemon_call('stop')
+                try:
+                        daemon_is_running = self.daemon_call('stop')
+                except RuntimeError:
+                        log.critical("Error in daemon call, can't restart")
+                        return
+
                 if daemon_is_running:
                         # Didn't stop normally, trying a some more times with 'force-stop' option
                         for i in range(1, NUM_DAEMON_STOP_TRIES):
                                 log.debug("Daemon didn't stop. Trying again with 'force-stop' option")
-                                daemon_is_running = self.daemon_call('force-stop')
+                                try:
+                                        daemon_is_running = self.daemon_call('force-stop')
+                                except RuntimeError, errmsg:
+                                        log.critical("Error in daemon call: " + str(errmsg))
+                                        continue
                                 if not daemon_is_running:
                                         break
 
