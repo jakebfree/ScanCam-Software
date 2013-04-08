@@ -49,15 +49,16 @@ args = parser.parse_args(['@scancam.conf'] + sys.argv[1:])
 
 
 
+log = idscam.common.syslogger.get_syslogger('scancam')
 # Set up logging
 if args.log_level == 'DEBUG':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.DEBUG)
+        log.setLevel(logging.DEBUG)
 elif args.log_level == 'INFO':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.INFO)
+        log.setLevel(logging.INFO)
 elif args.log_level == 'WARNING':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.WARNING)
+        log.setLevel(logging.WARNING)
 elif args.log_level == 'CRITICAL':
-        log = idscam.common.syslogger.get_syslogger('scancam', level=logging.CRITICAL)
+        log.setLevel(logging.CRITICAL)
 else:
         print "Logging level not available. Exiting."
         sys.exit(1)
