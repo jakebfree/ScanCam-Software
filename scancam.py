@@ -67,9 +67,6 @@ else:
 DEFAULT_STAGE_ACTION_TIMEOUT = args.stage_timeout       # seconds
 CAMERA_STARTUP_TIME = args.camera_warmup                # seconds
 
-just_one_scan = True
-skip_video = False
-scan_filename = "/etc/"
 verbose = True
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
@@ -792,11 +789,6 @@ class xthetaz_scancam(scancam_base):
                                 filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
                         else:
                                 filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
-
-                        if skip_video:
-                                log.debug("Skipping video. Sleeping %d instead" % clip_duration)
-                                sleep(clip_duration)
-                                continue
 
                         # Record Video                        
                         try:
