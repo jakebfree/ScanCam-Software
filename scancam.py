@@ -64,7 +64,6 @@ else:
         sys.exit(1)
 
 
-min_period_bt_scans = args.period                 # in minutes
 DEFAULT_STAGE_ACTION_TIMEOUT = args.stage_timeout       # seconds
 CAMERA_STARTUP_TIME = args.camera_warmup                # seconds
 
@@ -441,8 +440,8 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 # generate scan from calculated corner
 proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
                           scan_id = 'proto_scan',
-                          num_h_scan_points = 3,
-                          num_v_scan_points = 4,
+                          num_h_scan_points = 1,
+                          num_v_scan_points = 1,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
                           verbosity = verbose_for_scan_build )
@@ -888,7 +887,7 @@ if __name__ == '__main__':
                 while (1):
 
                         # Once a second, check to see if it's time to start a new scan
-                        if time() <= last_scan_start_time + min_period_bt_scans*60.0:
+                        if time() < last_scan_start_time + args.period*60.0:
                                 sleep(1)
                                 continue
                         # TODO: Handle start time of scans that error out
@@ -901,7 +900,7 @@ if __name__ == '__main__':
   
                         completed_scans += 1
 
-                        if( just_one_scan == True ):
+                        if not args.continuous and completed_scans == args.num_scans:
                                 break
                         
         except KeyboardInterrupt:
