@@ -872,6 +872,7 @@ if __name__ == '__main__':
                 scan.log_scan_contents( log, logging.INFO )        
 
         # Put everything in try statement so that we can finally close the serial port on any error
+        completed_scan_sets = 0
         try:
                 # Create serial connection
                 try:
@@ -917,7 +918,6 @@ if __name__ == '__main__':
                         scancam.home()
                                                         
                 # Loop and continually scan with a timed periodicity
-                completed_scan_sets = 0
                 last_scan_start_time = 0
                 while (1):
 
