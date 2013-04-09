@@ -211,7 +211,7 @@ class ueye_camera(camera_base):
                         daemon_is_running = self.daemon_call('stop')
                 except RuntimeError:
                         log.critical("Error in daemon call, can't restart")
-                        return
+                        raise
 
                 if daemon_is_running:
                         # Didn't stop normally, trying a some more times with 'force-stop' option
@@ -228,7 +228,7 @@ class ueye_camera(camera_base):
                 # If it is still running after all of our tries, return. There is nothing more we can do.
                 if daemon_is_running:
                         log.warning("Unable to stop camera daemon. Restart unsuccessful")
-                        return
+                        raise RuntimeError
                 
                 # Daemon is off, let's restart it
                 for i in range(1, NUM_DAEMON_START_TRIES+1):
@@ -239,6 +239,7 @@ class ueye_camera(camera_base):
                                 return
                 
                 log.warning("Unable to restart ueye camera daemon")
+                raise RuntimeError
                 
 
 
@@ -296,6 +297,14 @@ class ueye_camera(camera_base):
                 '''
 
                 # TODO: Check to see if it is time for a ueye daemon restart
+                if self.num_camera_calls_since_ueye_daemon_restart > self.num_camera_calls_between_ueye_daemon_restarts:
+                        try:
+                                self.restart_daemon()
+                                self.num_camera_calls_since_ueye_daemon_restart = 0        
+                        except RuntimeError:
+                                # If there was an error with the restart don't reset the counter
+                                # We'll try again next time
+                                pass
 
                 # TODO: Value check parameters
 
