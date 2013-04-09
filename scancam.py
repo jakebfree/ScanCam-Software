@@ -40,6 +40,7 @@ def parse_arguments( argv ):
         looping_group.add_argument('-n', '--num-scans', type=int, default=1, help="Number of scans to perform before exiting. Defaults to 1")
         looping_group.add_argument('-c', '--continuous', action="store_true", help="Take scans continually without exiting")
         parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
+        parser.add_argument('scanfile', type=argparse.FileType('rb'), help="Scan file name. Should include a pickled list of scans.")
 
         # The configs group of arguments is intended to be read from a configuration file.
         # They may be overwritten at the command line (useful during development).
@@ -825,6 +826,8 @@ if __name__ == '__main__':
         # -p, --minimum-period in minutes
         args = parse_arguments(sys.argv)
 
+        scan_list = pickle.load(args.scanfile)
+        args.scanfile.close()
 
         # Log all variables handled by config file and command line args
         log.info("Variables handled by config file and command line args:")
@@ -886,7 +889,7 @@ if __name__ == '__main__':
                         scancam.home()
                                                         
                 # Loop and continually scan with a timed periodicity
-                completed_scans = 0
+                completed_scan_sets = 0
                 last_scan_start_time = 0
                 while (1):
 
@@ -898,17 +901,18 @@ if __name__ == '__main__':
                         last_scan_start_time = time()
                         
                                
-                        # Walk through scan
-                        log.debug("Starting scan number" + str(completed_scans + 1))
-                        scancam.scan_action(xyz_scan)
+                        # Walk through scans
+                        log.debug("Starting scan set number" + str(completed_scan_sets + 1))
+                        for scan in scan_list:
+                                scancam.scan_action(scan)
   
-                        completed_scans += 1
+                        completed_scan_sets += 1
 
                         if not args.continuous and completed_scans == args.num_scans:
                                 break
                         
         except KeyboardInterrupt:
-                 log.debug("Completed %d scans." % completed_scans)
+                 log.debug("Completed %d scan sets." % completed_scan_sets)
 
 
         finally:
