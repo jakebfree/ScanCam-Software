@@ -326,12 +326,12 @@ class ueye_camera(camera_base):
 
                 # TODO: Check window params against image size determined by binning or subsampling
 
-                if video_format_params.has_key('subsampling') and video_format_params.has_key('binning'):
-                        log.critical( "Error: subsampling and binning are mutually exclusive" )
-                        raise ValueError
-                                                                                              
                 # Add optional video parameters to command
                 if video_format_params != None:
+                        if video_format_params.has_key('subsampling') and video_format_params.has_key('binning'):
+                                log.critical( "Error: subsampling and binning are mutually exclusive" )
+                                raise ValueError
+                                                                                              
                         if video_format_params.has_key('subsampling'):
                                 command += " -s " + str(video_format_params['subsampling'])
                                 
