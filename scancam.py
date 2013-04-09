@@ -721,6 +721,7 @@ class xthetaz_scancam(scancam_base):
                 self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
                         
+        # TODO: Move scan_action into scancam_base
         def scan_action(self, xyz_scan):
 
                 scan_point_num = 0
@@ -776,13 +777,10 @@ class xthetaz_scancam(scancam_base):
                                 move_setting = {'z': point['z1']}
                                 scancam.move( move_setting, wait_for_completion = False )
                       
-                        # TODO: Looks like binned cropping is in terms of binned coordinates, but 
-                        # subsampled cropping is in terms of full sensor location (not subsampled) locations
-                        # verify and handle appropriately
-                        
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
                         t_str = self.build_timestring( gmtime(time()) )
+                        # TODO: use host and scan id for beginning of base
                         if point.has_key('point-id'):
                                 filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
                         else:

@@ -299,6 +299,10 @@ class ueye_camera(camera_base):
 
                 # TODO: Value check parameters
 
+                # TODO: Looks like binned cropping is in terms of binned coordinates, but 
+                # subsampled cropping is in terms of full sensor location (not subsampled) locations
+                # verify and handle appropriately
+                        
                 # Start to build camera command with camera identifier
                 command = ""
                 if self.cam_device_id != None:
