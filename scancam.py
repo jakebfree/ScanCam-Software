@@ -609,6 +609,85 @@ class scancam_base():
                 return in_action
         
 
+        def scan_action(self, xyz_scan):
+
+                scan_point_num = 0
+                for point in xyz_scan.scanpoints:
+
+                        scan_point_num += 1
+                        log.debug("Step " + str(scan_point_num) + " " + str(point))
+
+                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
+                        
+                        move_setting = {'x': point['x'],
+                                        'y': point['y']}
+                        if point.has_key('z0'):
+                                # Set z-axis speed to standard moderately fast value. It may have been set to a
+                                # different value during an image-through-depth sequence
+                                # TODO: fix this to work more appropriately for class
+                                z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
+
+                                move_setting['z'] = point['z0']
+
+                        # Move to x,y,z
+                        self.move( move_setting )
+                        
+
+                        # If this scan point has no time value, there is no video to record
+                        # Probably a transitional point that is just there to avoid crashing
+                        # into walls.
+                        if not point.has_key('t'):
+                                log.info("Point has no time value. Skipping z1 and video")
+                                continue
+                        
+                        clip_duration = int(point['t'])
+                        
+                        # If there is a second z-axis value, start the move to it as we start the video clip
+                        # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
+                        if point.has_key('z1') and clip_duration != 0:
+                                # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                # But, the camera may require a little warm-up time from system call to the first frame
+                                # We'll add a small buffer of time to the z-axis move so that even if the move and clip
+                                # don't start together, at least they will end together.
+                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t']) + self.camera_warmup)
+
+                                if target_z_speed > MAX_Z_MOVE_SPEED:
+                                        # Calculate clip duration, rounding up to next int
+                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - self.camera_warmup)
+                                        log.warning( str(target_z_speed) + " is too fast. Setting to max speed: " + str(MAX_Z_MOVE_SPEED) + \
+                                                              " And extending clip duration to: " + str(clip_duration))
+                                        target_z_speed = MAX_Z_MOVE_SPEED
+                                # TODO: fix set_target_speed_in_units call to be type agnostic
+                                # TODO: change to be more scancam class appropriate
+                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
+
+                                move_setting = {'z': point['z1']}
+                                scancam.move( move_setting, wait_for_completion = False )
+                      
+                        # Build video file target basename in the format:
+                        #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
+                        t_str = self.build_timestring( gmtime(time()) )
+                        # TODO: use host and scan id for beginning of base
+                        if point.has_key('point-id'):
+                                filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                        else:
+                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+
+                        # Record Video                        
+                        try:
+                                camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
+                        except KeyboardInterrupt:
+                                raise        
+                        except:
+                                raise
+
+                        # Assure that the last z-axis move was completed
+                        try:
+                                scancam.wait_for_stages_to_complete_actions()
+                        except zaber_device.DeviceTimeoutError, device_id:
+                                log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
+                                raise
+
 class xthetaz_scancam(scancam_base):
         '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100)
 
@@ -750,86 +829,6 @@ class xthetaz_scancam(scancam_base):
                 self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
                         
-        # TODO: Move scan_action into scancam_base
-        def scan_action(self, xyz_scan):
-
-                scan_point_num = 0
-                for point in xyz_scan.scanpoints:
-
-                        scan_point_num += 1
-                        log.debug("Step " + str(scan_point_num) + " " + str(point))
-
-                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
-                        
-                        move_setting = {'x': point['x'],
-                                        'y': point['y']}
-                        if point.has_key('z0'):
-                                # Set z-axis speed to standard moderately fast value. It may have been set to a
-                                # different value during an image-through-depth sequence
-                                # TODO: fix this to work more appropriately for class
-                                z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
-
-                                move_setting['z'] = point['z0']
-
-                        # Move to x,y,z
-                        self.move( move_setting )
-                        
-
-                        # If this scan point has no time value, there is no video to record
-                        # Probably a transitional point that is just there to avoid crashing
-                        # into walls.
-                        if not point.has_key('t'):
-                                log.info("Point has no time value. Skipping z1 and video")
-                                continue
-                        
-                        clip_duration = int(point['t'])
-                        
-                        # If there is a second z-axis value, start the move to it as we start the video clip
-                        # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
-                        if point.has_key('z1') and clip_duration != 0:
-                                # The move from z0 to z1 should take the same amount of time as the video clip duration
-                                # But, the camera may require a little warm-up time from system call to the first frame
-                                # We'll add a small buffer of time to the z-axis move so that even if the move and clip
-                                # don't start together, at least they will end together.
-                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t']) + self.camera_warmup)
-
-                                if target_z_speed > MAX_Z_MOVE_SPEED:
-                                        # Calculate clip duration, rounding up to next int
-                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - self.camera_warmup)
-                                        log.warning( str(target_z_speed) + " is too fast. Setting to max speed: " + str(MAX_Z_MOVE_SPEED) + \
-                                                              " And extending clip duration to: " + str(clip_duration))
-                                        target_z_speed = MAX_Z_MOVE_SPEED
-                                # TODO: fix set_target_speed_in_units call to be type agnostic
-                                # TODO: change to be more scancam class appropriate
-                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
-
-                                move_setting = {'z': point['z1']}
-                                scancam.move( move_setting, wait_for_completion = False )
-                      
-                        # Build video file target basename in the format:
-                        #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
-                        t_str = self.build_timestring( gmtime(time()) )
-                        # TODO: use host and scan id for beginning of base
-                        if point.has_key('point-id'):
-                                filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
-                        else:
-                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
-
-                        # Record Video                        
-                        try:
-                                camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
-                        except KeyboardInterrupt:
-                                raise        
-                        except:
-                                raise
-
-                        # Assure that the last z-axis move was completed
-                        try:
-                                scancam.wait_for_stages_to_complete_actions()
-                        except zaber_device.DeviceTimeoutError, device_id:
-                                log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
-                                raise
-
                         
 #####################################################################################################################
 
