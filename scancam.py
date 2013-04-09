@@ -52,6 +52,7 @@ def parse_arguments( argv ):
 
         # The values are ready from the configuration file first in the list so that
         # command line arguments may supercede them if given
+        # TODO: move return to end
         return parser.parse_args(['@scancam.conf'] + argv[1:])
 
         log = idscam.common.syslogger.get_syslogger('scancam')
@@ -118,6 +119,14 @@ class scan_base():
                 self.scanpoints = []
 
 
+        def log_scan_contents(self, logger, log_level):
+                '''scan_base.log_scan_contents(logger, log_level)
+                
+                Print the contents of the scan to logger.
+                '''
+                logger.log(log_level, "Scan ID: " + self.id)
+                for point in self.scanpoints:
+                        logger.log(log_level, "    " + str(point))
 
         def build_scan_from_target_corners(self, corners, target_width = 19.1, target_height = 26.8,
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
@@ -853,12 +862,14 @@ if __name__ == '__main__':
         scan_list = pickle.load(args.scanfile)
         args.scanfile.close()
 
-
-        # scan is a list of scanpoints represented as dictionaries with the keys:
+        # List scan(s) at startup
+        # scan is scan class containing a list of scanpoints represented as dictionaries with the keys:
         #	x	x-axis target location in mm
         #	theta	rotary stage target location in deg
         #	z	z-axis target location in mm
         #	t	time in seconds to record video
+        for scan in scan_list:
+                scan.log_scan_contents( log, logging.INFO )        
 
         # Put everything in try statement so that we can finally close the serial port on any error
         try:
@@ -870,7 +881,6 @@ if __name__ == '__main__':
                         log.critical("If we don't have a serial connection, we're dead in the water. Exiting.")
                         sys.exit(1)
                         
-
                 # TODO Flush serial port and anything else necessary to have clean comm start
 
                 # Derive verbosity for stages from log level
