@@ -350,7 +350,7 @@ class ueye_camera(camera_base):
                                 command += " -ey0 " + str(video_format_params['exposure_window'][2])
                                 command += " -ey1 " + str(video_format_params['exposure_window'][3])
                         # If exposure window not explicitly spec'd, make it same as the cropping
-                        else:
+                        elif video_format_params.has_key('cropping'):
                                 command += " -ex0 " + str(video_format_params['cropping'][0])
                                 command += " -ex1 " + str(video_format_params['cropping'][1])
                                 command += " -ey0 " + str(video_format_params['cropping'][2])
