@@ -306,7 +306,8 @@ class six_well_scan(scan_base):
 
 
 class six_well_just_corners_scan(scan_base):
-        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False)
+        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
+                       clip_duration=3, video_format_params=None)
 
         Modified version of 6_well_scan that includes only the four corners of
         each well instead of a full scan. It is simplified this way in order to
@@ -325,6 +326,9 @@ class six_well_just_corners_scan(scan_base):
         
         clip_duration:          Duration in seconds to record video for each scan point
 
+        video_format_params:    Dictionary of video params to be passed to camera when
+                                recording video clips
+
         verbose:                Verbosity
 
         Assumes that the orientation of the plate is such that it is vertical
@@ -338,7 +342,22 @@ class six_well_just_corners_scan(scan_base):
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
+                     clip_duration = 3,
+                     video_format_params = None,
                      verbose = False):
+
+
+                self.calibrated_for_z = False
+
+                # These were calculated from a list of twelve well corners measured from the SolidWorks model
+                self.delta_corners = [  {'y': 0.0, 'x': 0.0},
+                                        {'y': 38.3, 'x': 0.0},
+                                        {'y': 76.6, 'x': 0.0},
+                                        {'y': 8.7, 'x': 28.1},
+                                        {'y': 47.0, 'x': 28.1},
+                                        {'y': 85.3, 'x': 28.1}    ]
+
+                scan_base.__init__(self, scan_id, video_format_params)
 
                 # Build list of top left well corners from top-left corner of top-left well and deltas
                 # TODO: make into function in parent class
@@ -818,22 +837,21 @@ arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
 
 if __name__ == '__main__':
 
-        # open file and unpickle the scan
-
         # parse arguments
         # scancam [OPTION]... [SCANFILE]...
         #
         # -p, --minimum-period in minutes
         args = parse_arguments(sys.argv)
 
-        scan_list = pickle.load(args.scanfile)
-        args.scanfile.close()
-
         # Log all variables handled by config file and command line args
         log.info("Variables handled by config file and command line args:")
         arg_dict = vars(args)
         for arg in arg_dict:
                 log.info("    " + arg + ": " + str(arg_dict[arg]))
+
+        # open file and unpickle the scan
+        scan_list = pickle.load(args.scanfile)
+        args.scanfile.close()
 
 
         # scan is a list of scanpoints represented as dictionaries with the keys:
