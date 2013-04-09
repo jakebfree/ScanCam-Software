@@ -19,6 +19,8 @@ parser.add_argument('--home-on-start', action='store_true', default=True, help="
 parser.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
 parser.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
 
+args = parser.parse_args()
+
 print "log level:", str(args.log_level)
 
 log = idscam.common.syslogger.get_syslogger('scancam_tester')
@@ -46,7 +48,6 @@ arg_dict = vars(args)
 for arg in arg_dict:
         log.info("    " + arg + ": " + str(arg_dict[arg]))
 
-sys.exit(0)
 
 ser = serial_connection(args.serial_dev)
 
@@ -64,11 +65,12 @@ try:
     # Start thread for serial commnunication
     thread.start_new_thread( ser.open, ())
 
-    camera = ueye_camera(cam_device_id = 1, log_level = log.getEffectiveLevel() ) 
+    camera = ueye_camera(cam_id = 1, 
+                         log_level = log.getEffectiveLevel(),
+                         num_camera_calls_between_ueye_daemon_restarts = 3  ) 
 
-    print "status:", camera.daemon_call('status')
-    print "start:", camera.daemon_call('start')
-    camera.restart_daemon()
+    for i in range(10):
+        camera.record_video('tester%d'%i, 1, video_format_params = {'binning': 2} )
 
     scancam = xthetaz_scancam( [x_stage, theta_stage], camera )
 
