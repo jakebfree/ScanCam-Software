@@ -23,6 +23,7 @@ from bst_camera import *
 
 import logging, idscam.common.syslogger
 
+log = idscam.common.syslogger.get_syslogger('scancam')
 
 
 MAX_CLIP_LENGTH = 60                    # seconds
@@ -52,10 +53,8 @@ def parse_arguments( argv ):
 
         # The values are ready from the configuration file first in the list so that
         # command line arguments may supercede them if given
-        # TODO: move return to end
-        return parser.parse_args(['@scancam.conf'] + argv[1:])
+        args = parser.parse_args(['@scancam.conf'] + argv[1:])
 
-        log = idscam.common.syslogger.get_syslogger('scancam')
         # Set up logging
         if args.log_level == 'DEBUG':
                 log.setLevel(logging.DEBUG)
@@ -69,6 +68,13 @@ def parse_arguments( argv ):
                 print "Logging level not available. Exiting."
                 sys.exit(1)
 
+        log.critical("Logging critical messages.")
+        log.error("Logging error messages")
+        log.warning("Logging warning messages.")
+        log.info("Logging info messages")
+        log.debug("Logging debug messages")
+
+        return args
 
 
 
