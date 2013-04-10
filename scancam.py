@@ -944,7 +944,12 @@ if __name__ == '__main__':
 
         finally:
                 # Send stop command to all devices
-                scancam.stop()
+                try:
+                        scancam
+                        scancam.stop()
+                except NameError:
+                        # If the scancam has not been intitialized, don't stop it
+                        pass
                 
                 # Close serial connection before final exit
                 log.info("Closing serial connection")
