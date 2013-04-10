@@ -134,13 +134,14 @@ class scan_base():
                 for point in self.scanpoints:
                         logger.log(log_level, "    " + str(point))
 
-        def build_scan_from_target_corners(self, corners, target_width = 19.1, target_height = 26.8,
+        def build_scan_from_target_origins(self, origins, target_width = 19.1, target_height = 26.8,
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
                                            verbose = False):
-                '''scan_base.build_xyz_scan_from_target_corners( corners, target_width = 19.1, target_height = 26.8,
+                '''scan_base.build_xyz_scan_from_target_origins( origins, target_width = 19.1, target_height = 26.8,
                                 num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbose = False)
 
-                corners:        List of dictionaries each of which represents a corner location in the format:
+                origins:        List of dictionaries each of which represents the bottom-left corner of the target
+                                area. In the format:
                                 {'x'=<>, 'y'=<>, 'area_id'=<>}
 
                 target_width:   Width (in mm) of the target areas to scan over
@@ -161,9 +162,9 @@ class scan_base():
                 
                 Builds an scan of points across a list of equally sized rectangular targets.
 
-                The scan begins in the top-left corner of the first target and scans across and down it
+                The scan begins in the bottom-left corner (origin) of the first target and scans across and up it
                 in an ess pattern that goes to the right across a row and left back across the next row.
-                It then jumps to the top-left corner of the next target and scans it. Repeating until
+                It then jumps to the origin of the next target and scans it. Repeating until
                 all of the targets are complete.
 
                 It has no knowledge of the camera's field of view so the user must designate the correct
@@ -181,12 +182,12 @@ class scan_base():
                 # Iterate across rows and down columns to scan each target
                 self.scanpoints = []
                 first_z_last_time = ''
-                corner_num = 0
-                for corner in corners:
-                        corner_num += 1
+                area_num = 0
+                for origin in origins:
+                        area_num += 1
                         # The center of the first cell isn't the corner, it's half a cell over (and down)
-                        x0 = corner['x'] - cell_width/2.0
-                        y0 = corner['y'] - cell_height/2.0
+                        x0 = origin['x'] - cell_width/2.0
+                        y0 = origin['y'] + cell_height/2.0
                         for jj in range(num_v_scan_points):
                                 for ii in range(num_h_scan_points):
                                         scan_point = {}
@@ -209,37 +210,37 @@ class scan_base():
                                         if j%2 == 1:
                                                 scan_point['x'] = x0 - (num_h_scan_points-1-i)*cell_width
 
-                                        scan_point['y'] = y0 - j*cell_height
+                                        scan_point['y'] = y0 + j*cell_height
 
                                         # If there is a second z-axis value, alternate which one you
                                         # start with to avoid waiting for z to get back to z0 every time
-                                        if corner.has_key('z1'):
+                                        if origin.has_key('z1'):
                                                 if first_z_last_time != 'z0':
-                                                        scan_point['z0'] = corner['z0']
-                                                        scan_point['z1'] = corner['z1']
+                                                        scan_point['z0'] = origin['z0']
+                                                        scan_point['z1'] = origin['z1']
                                                         first_z_last_time = 'z0'
                                                 else:
-                                                        scan_point['z0'] = corner['z1']
-                                                        scan_point['z1'] = corner['z0']
+                                                        scan_point['z0'] = origin['z1']
+                                                        scan_point['z1'] = origin['z0']
                                                         first_z_last_time = 'z1'
                                         # If there's no second z value, just use the one you have
                                         else:
                                                 if scan_point.has_key('z0'):
-                                                        scan_point['z0'] = corner['z0']
+                                                        scan_point['z0'] = origin['z0']
                                                         
-                                        if corner.has_key('t'):
-                                                scan_point['t'] = corner['t']
+                                        if origin.has_key('t'):
+                                                scan_point['t'] = origin['t']
 
                                         # Add cell identifier
-                                        scan_point['point-id'] = "%d-%d-%d" % ( corner_num, j+1, i+1)
+                                        scan_point['point-id'] = "%d-%d-%d" % ( area_num, j+1, i+1)
 
                                         # Assign target areas id to point. This may be useful later when
                                         # calibrating in cases where a given calibration is to be applied
                                         # to all points in a target area. If none given, serialize.
-                                        if corner.has_key('area-id'):
-                                                scan_point['area-id'] = corner['area-id']
+                                        if origin.has_key('area-id'):
+                                                scan_point['area-id'] = origin['area-id']
                                         else:
-                                                scan_point['area-id'] = corner_num
+                                                scan_point['area-id'] = area_num
                                                 
                                         # We're done with that point, add it to the new scan
                                         self.scanpoints.append( scan_point )
@@ -250,13 +251,13 @@ class scan_base():
 
                 
 class six_well_scan(scan_base):
-        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
+        '''6_well_scan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
                         clip_duration = 10, verbose=False)
 
         Takes the origin of the top-left well and generates a scan based
         on the known geometry of the 6-well plate measured from the SolidWorks model
 
-        top_left_origin:        Top-left corner of the top-left well in the format
+        top_left_origin:        Bottom-left corner of the top-left well in the format
                                 {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
@@ -293,7 +294,7 @@ class six_well_scan(scan_base):
 
                 well_origins = self.generate_well_origins( top_left_origin )
 
-                scan_base.build_scan_from_target_corners(self,
+                scan_base.build_scan_from_target_origins(self,
                                                          well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
@@ -308,7 +309,7 @@ class six_well_scan(scan_base):
                 '''generate_well_origins( top_left_well_origin )
 
                 Given the origin of the top-left well of a six well plate, generate a list
-                of all six well origins. The origins are the top left corners of the wells.
+                of all six well origins. The origins are the bottom left corners of the wells.
 
                 top_left_well_origin:   (x,y) coordinates of the origin of the top-left well
                 '''
@@ -338,7 +339,7 @@ class six_well_just_corners_scan(six_well_scan):
         each well instead of a full scan. It is simplified this way in order to
         verify the lateral location of the wells by visualizing the corners.
 
-        top_left_origin:        Top-left corner of the top-left well in the format
+        top_left_origin:        Bottom-left corner of the top-left well in the format
                                 {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
@@ -378,7 +379,7 @@ class six_well_just_corners_scan(six_well_scan):
 
                 well_origins = self.generate_well_origins( top_left_origin )
 
-                scan_base.build_scan_from_target_corners(self,
+                scan_base.build_scan_from_target_origins(self,
                                                          well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
@@ -453,7 +454,7 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-proto_scan = six_well_scan( {'x':69.0, 'y':56.0 },
+proto_scan = six_well_scan( {'x':29.2, 'y':56.0 },
                           scan_id = 'proto_scan',
                           num_h_scan_points = 1,
                           num_v_scan_points = 1,
