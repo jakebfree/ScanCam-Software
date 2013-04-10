@@ -795,11 +795,10 @@ class xthetaz_scancam(scancam_base):
                         X = x - self.arm_length * math.sin( math.radians( theta ) )
 
                 # If X is still out of bounds, it must be unachievable. Raise exception
-                # TODO: Switch to user defined exception
                 if X < self.min_X or X > self.max_X:
                         log.critical("Unable to translate (%f, %f) to X-theta coordinates." % (x,y))
                         log.critical("Calculated X value of %f is out of range." % X)
-                        raise SyntaxError
+                        raise ValueError
                 
                 # Put x-theta coord in scan list
                 x_theta_point = { 'X': X, 'theta': theta }
