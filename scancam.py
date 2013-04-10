@@ -738,7 +738,7 @@ class xthetaz_scancam(scancam_base):
                 if X < self.min_X or X > self.max_X:
                         self.used_negative_of_angle_last_time = not self.used_negative_of_angle_last_time
                         theta = 360 - theta     
-                        X = x - self.arm_length * math.sin( math.radians( theta ) )
+                        X = x + self.arm_length * math.sin( math.radians( theta ) )
 
                 # If X is still out of bounds, it must be unachievable. Raise exception
                 if X < self.min_X or X > self.max_X:
