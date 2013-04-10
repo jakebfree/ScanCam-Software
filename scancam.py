@@ -253,10 +253,10 @@ class six_well_scan(scan_base):
         '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
                         clip_duration = 10, verbose=False)
 
-        Takes the top-left corner of the top-left well and generates a scan based
+        Takes the origin of the top-left well and generates a scan based
         on the known geometry of the 6-well plate measured from the SolidWorks model
 
-        top_left_corner:        Top-left corner of the top-left well in the format
+        top_left_origin:        Top-left corner of the top-left well in the format
                                 {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
@@ -279,7 +279,7 @@ class six_well_scan(scan_base):
                         
 
         def __init__(self,
-                     top_left_corner,
+                     top_left_origin,
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
@@ -289,26 +289,12 @@ class six_well_scan(scan_base):
 
                 self.calibrated_for_z = False
 
-                # These were calculated from a list of twelve well corners measured from the SolidWorks model
-                self.delta_corners = [  {'y': 0.0, 'x': 0.0},
-                                        {'y': 38.3, 'x': 0.0},
-                                        {'y': 76.6, 'x': 0.0},
-                                        {'y': 8.7, 'x': 28.1},
-                                        {'y': 47.0, 'x': 28.1},
-                                        {'y': 85.3, 'x': 28.1}    ]
-
                 scan_base.__init__(self, scan_id, video_format_params)
 
-                # Build list of top left well corners from top-left corner of top-left well and deltas
-                # TODO: make into inheritable function
-                well_top_left_corners = []
-                for delta_corner in self.delta_corners:
-                        corner = {'x': (top_left_corner['x']-delta_corner['x']), 'y': (top_left_corner['y']-delta_corner['y']) }
-                        well_top_left_corners.append( corner )
-
+                well_origins = self.generate_well_origins( top_left_origin )
 
                 scan_base.build_scan_from_target_corners(self,
-                                                         well_top_left_corners,
+                                                         well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
                                                          num_h_scan_points = num_h_scan_points,
@@ -318,9 +304,33 @@ class six_well_scan(scan_base):
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
 
+        def generate_well_origins( self, top_left_well_origin ):
+                '''generate_well_origins( top_left_well_origin )
+
+                Given the origin of the top-left well of a six well plate, generate a list
+                of all six well origins. The origins are the top left corners of the wells.
+
+                top_left_well_origin:   (x,y) coordinates of the origin of the top-left well
+                '''
+                # These were calculated from a list of twelve well corners measured from the SolidWorks model
+                self.delta_origins = [  {'y': 0.0, 'x': 0.0},
+                                        {'y': 38.3, 'x': 0.0},
+                                        {'y': 76.6, 'x': 0.0},
+                                        {'y': 8.7, 'x': 28.1},
+                                        {'y': 47.0, 'x': 28.1},
+                                        {'y': 85.3, 'x': 28.1}    ]
+
+                # Build list of well origins from origin of top-left well and deltas
+                well_origins = []
+                for delta_origin in self.delta_origins:
+                        origin = {'x': (top_left_well_origin['x']-delta_origin['x']), 
+                                  'y': (top_left_well_origin['y']-delta_origin['y']) }
+                        well_origins.append( origin )
+
+                return well_origins
 
 
-class six_well_just_corners_scan(scan_base):
+class six_well_just_corners_scan(six_well_scan):
         '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
                        clip_duration=3, video_format_params=None)
 
@@ -328,7 +338,7 @@ class six_well_just_corners_scan(scan_base):
         each well instead of a full scan. It is simplified this way in order to
         verify the lateral location of the wells by visualizing the corners.
 
-        top_left_corner:        Top-left corner of the top-left well in the format
+        top_left_origin:        Top-left corner of the top-left well in the format
                                 {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
@@ -353,7 +363,7 @@ class six_well_just_corners_scan(scan_base):
 
 
         def __init__(self,
-                     top_left_corner,
+                     top_left_origin,
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
@@ -364,26 +374,12 @@ class six_well_just_corners_scan(scan_base):
 
                 self.calibrated_for_z = False
 
-                # These were calculated from a list of twelve well corners measured from the SolidWorks model
-                self.delta_corners = [  {'y': 0.0, 'x': 0.0},
-                                        {'y': 38.3, 'x': 0.0},
-                                        {'y': 76.6, 'x': 0.0},
-                                        {'y': 8.7, 'x': 28.1},
-                                        {'y': 47.0, 'x': 28.1},
-                                        {'y': 85.3, 'x': 28.1}    ]
-
                 scan_base.__init__(self, scan_id, video_format_params)
 
-                # Build list of top left well corners from top-left corner of top-left well and deltas
-                # TODO: make into function in parent class
-                well_top_left_corners = []
-                for delta_corner in self.delta_corners:
-                        corner = {'x': (top_left_corner['x']-delta_corner['x']), 'y': (top_left_corner['y']-delta_corner['y']) }
-                        well_top_left_corners.append( corner )
-
+                well_origins = self.generate_well_origins( top_left_origin )
 
                 scan_base.build_scan_from_target_corners(self,
-                                                         well_top_left_corners,
+                                                         well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
                                                          num_h_scan_points = num_h_scan_points,
