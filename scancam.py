@@ -250,8 +250,8 @@ class scan_base():
 
 
                 
-class six_well_scan(scan_base):
-        '''6_well_scan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
+class six_well_biocell_scan(scan_base):
+        '''6_well_biocell_scan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
                         clip_duration = 10, verbose=False)
 
         Takes the origin of the top-left well and generates a scan based
@@ -331,8 +331,8 @@ class six_well_scan(scan_base):
                 return well_origins
 
 
-class six_well_just_corners_scan(six_well_scan):
-        '''6_well_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
+class six_well_biocell_just_corners_scan(six_well_biocell_scan):
+        '''6_well_biocell_just_corners_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
                        clip_duration=3, video_format_params=None)
 
         Modified version of 6_well_scan that includes only the four corners of
