@@ -415,60 +415,6 @@ def xtz2xyz(xtz, arm_length = 55.0):
 
                 
 
-
-
-# Place-holding xyz scan matrix for basic testing
-# all numbers in mm
-xyz_keys = ( 'x', 'y', 'z0', 'z1', 't' )
-arb_test_xyz_scan = [ dict( zip(xyz_keys, ( 30, 50, 1, 4, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 40, 40, 6, 0, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, 30, 1, 4, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 60, -20, 6, 0, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 70, -10, 1, 4, 0 ))) ]
-arb_test_xyz_scan += [ dict( zip(xyz_keys, ( 50, -10, 6, 0, 0 ))) ]
-
-
-
-
-# First cut at flight-like scan
-# Corners determined from solid model represent top and right edges of wells
-corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
-            {'x':152.2, 'y':9.0, 'z0':0.0, 'z1':6.0, 't':3},
-            {'x':152.2, 'y':-29.3, 'z0':1.5, 'z1':4.5, 't':3},
-            {'x':124.1, 'y':47.3, 'z0':0.0, 'z1':6.0, 't':3},
-            {'x':124.1, 'y':9.0, 'z0':2.0, 'z1':4.0, 't':3},
-            {'x':124.1, 'y':-29.3, 'z0':0.0, 'z1':6.0, 't':3},
-            {'x':28.1, 'y':47.3, 'z0':0.0, 't':3},
-            {'x':28.1, 'y':9.0, 'z0':1.0, 't':3},
-            {'x':28.1, 'y':-29.3, 'z0':2.0, 't':3},
-            {'x':0.0, 'y':47.3, 'z0':3.0, 't':3},
-            {'x':0.0, 'y':9.0, 'z0':4.0, 't':3},
-            {'x':0.0, 'y':-29.3, 'z0':5.0, 't':3}
-        )
-# TODO: Adapt to work with classes
-#model_scan = build_xyz_scan_from_target_corners( corners_from_sw )
-
-
-          
-
-
-# Heuristically found culture geometry on prototype
-# generate scan from calculated corner
-proto_scan = six_well_scan( {'x':29.2, 'y':56.0 },
-                          scan_id = 'proto_scan',
-                          num_h_scan_points = 1,
-                          num_v_scan_points = 1,
-                          video_format_params = { 'subsampling': 3,
-                                           'cropping': (320, 2240, 0, 1920) },
-                          verbose = verbose_for_scan_build )
-
-
-# HACK to set the scan before we import from file
-xyz_scan = proto_scan 
-#xyz_scan = model_xyz_scan
-
-
-
 ################################################################################
 
 
@@ -784,7 +730,7 @@ class xthetaz_scancam(scancam_base):
                         else:
                                 theta = 0.0
                         log.debug("Incapable of reaching location (%f, %f). Setting theta=%f" % (x, y, theta))
-
+                
                 X = x + self.arm_length * math.sin( math.radians( theta ) )
 
                 # If the calculated X is out of bounds, swing theta to its negative (which could be back
@@ -835,15 +781,6 @@ class xthetaz_scancam(scancam_base):
 #####################################################################################################################
 
                   
-        
-# Temporary x--theta scan for testing
-xtz_keys = ( 'X', 'theta', 'z', 't' )
-arb_test_xtz_scan = [ dict( zip(xtz_keys, ( 20, 45, 1, 0 ))) ]
-arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 40, 90, 4, 0 ))) ]
-arb_test_xtz_scan += [ dict( zip(xtz_keys, ( 5, 120, 7, 0 ))) ]
-
-
-
 
 if __name__ == '__main__':
 
