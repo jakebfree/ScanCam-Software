@@ -5,6 +5,7 @@ import pickle
 import math
 import serial
 import os, subprocess, shutil
+from socket import gethostname
 try:
     import argparse
 except ImportError, err:
@@ -616,11 +617,11 @@ class scancam_base():
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
                         t_str = self.build_timestring( gmtime(time()) )
-                        # TODO: use host and scan id for beginning of base
+                        filename_base = gethostname() + '_' + self.get_id() + '_'
                         if point.has_key('point-id'):
-                                filename_base = "proto_built-in-scan_" + point['point-id'] + '.' + t_str
+                                filename_base += point['point-id'] + '.' + t_str
                         else:
-                                filename_base = "proto_built-in-scan_" + str(scan_point_num) + '.' + t_str
+                                filename_base += str(scan_point_num) + '.' + t_str
 
                         # Record Video                        
                         try:
