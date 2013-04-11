@@ -125,6 +125,12 @@ class scan_base():
                 
                 self.scanpoints = []
 
+        def get_id(self):
+                '''scan_base.get_id()
+
+                Returns string containing scan identifier.
+                '''
+                return self.id
 
         def log_scan_contents(self, logger, log_level):
                 '''scan_base.log_scan_contents(logger, log_level)
@@ -617,7 +623,7 @@ class scancam_base():
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
                         t_str = self.build_timestring( gmtime(time()) )
-                        filename_base = gethostname() + '_' + self.get_id() + '_'
+                        filename_base = gethostname() + '_' + xyz_scan.get_id() + '_'
                         if point.has_key('point-id'):
                                 filename_base += point['point-id'] + '.' + t_str
                         else:
