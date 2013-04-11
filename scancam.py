@@ -410,13 +410,11 @@ def xtz2xyz(xtz, arm_length = 55.0):
         xyz['x'] = xtz['X'] - math.sin( math.radians(xtz['theta']) ) * arm_length
         xyz['y'] = -math.cos( math.radians(xtz['theta']) ) * arm_length
 
-        # TODO: make generic for non x,y,theta keys
-        if xtz.has_key('z0'):
-                xyz['z0'] = xtz['z0']
-        if xtz.has_key('z1'):
-                xyz['z1'] = xtz['z1']
-        if xtz.has_key('t'):
-                xyz['t'] = xtz['t']
+        # Propagate all other members through to xyz scan
+        for param in xtz:
+                if param in ('x', 'y'):
+                        continue
+                xyz[param] = xtz[param]
 
         return xyz
 
