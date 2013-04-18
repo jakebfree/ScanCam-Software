@@ -862,18 +862,23 @@ if __name__ == '__main__':
                                                         
                 # Loop and continually scan with a timed periodicity
                 last_scan_start_time = 0
+                announced_wait_period = False
                 while (1):
 
                         # Once a second, check to see if it's time to start a new scan
                         if time() < last_scan_start_time + args.period*60.0:
+                                if announced_wait_period == False:
+                                        log.info("Waiting %f minutes before next scan" % ((last_scan_start_time - time())/60.0) )
+                                        announced_wait_period = True
                                 sleep(1)
                                 continue
                         # TODO: Handle start time of scans that error out
+                        announced_wait_time = False
                         last_scan_start_time = time()
                         
                                
                         # Walk through scans
-                        log.debug("Starting scan set number" + str(completed_scan_sets + 1))
+                        log.info("Starting scan set number" + str(completed_scan_sets + 1))
                         for scan in scan_list:
                                 scancam.scan_action(scan)
   
