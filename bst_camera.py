@@ -160,6 +160,9 @@ class ueye_camera(camera_base):
                 Returns:   Binary value of whether daemon is running
                 '''
                 # Check for valid command
+                  
+                # TODO: Handle situation where daemon was not running and camera was not initialized
+                # Otherwise we may turn on the daemon, then do a camera call before it has initialized and error out
                 valid_commands = ('start', 'stop', 'status', 'force-stop')
                 if not command in valid_commands:
                         log.critical( command + " is not a valid command to the ueye daemon control script" )
