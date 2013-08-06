@@ -80,8 +80,8 @@ def parse_arguments( argv ):
 
 
 
-class scan_base():
-        '''scan_base(id = None, video_params = None)
+class ScanBase():
+        '''ScanBase(id = None, video_params = None)
 
         Implements the scan base class.
 
@@ -126,14 +126,14 @@ class scan_base():
                 self.scanpoints = []
 
         def get_id(self):
-                '''scan_base.get_id()
+                '''ScanBase.get_id()
 
                 Returns string containing scan identifier.
                 '''
                 return self.id
 
         def log_scan_contents(self, logger, log_level):
-                '''scan_base.log_scan_contents(logger, log_level)
+                '''ScanBase.log_scan_contents(logger, log_level)
                 
                 Print the contents of the scan to logger.
                 '''
@@ -144,7 +144,7 @@ class scan_base():
         def build_scan_from_target_origins(self, origins, target_width = 19.1, target_height = 26.8,
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
                                            verbose = False):
-                '''scan_base.build_xyz_scan_from_target_origins( origins, target_width = 19.1, target_height = 26.8,
+                '''ScanBase.build_xyz_scan_from_target_origins( origins, target_width = 19.1, target_height = 26.8,
                                 num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbose = False)
 
                 origins:        List of dictionaries each of which represents the bottom-left corner of the target
@@ -257,8 +257,8 @@ class scan_base():
 
 
                 
-class six_well_biocell_scan(scan_base):
-        '''6_well_biocell_scan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
+class SixWellBioCellScan(ScanBase):
+        '''SixWellBioCellScan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
                         clip_duration = 10, verbose=False)
 
         Takes the origin of the top-left well and generates a scan based
@@ -297,11 +297,11 @@ class six_well_biocell_scan(scan_base):
 
                 self.calibrated_for_z = False
 
-                scan_base.__init__(self, scan_id, video_format_params)
+                ScanBase.__init__(self, scan_id, video_format_params)
 
                 well_origins = self.generate_well_origins( top_left_origin )
 
-                scan_base.build_scan_from_target_origins(self,
+                ScanBase.build_scan_from_target_origins(self,
                                                          well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
@@ -338,8 +338,8 @@ class six_well_biocell_scan(scan_base):
                 return well_origins
 
 
-class six_well_biocell_just_corners_scan(six_well_biocell_scan):
-        '''6_well_biocell_just_corners_scan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
+class SixWellBioCellJustCornersScan(SixWellBioCellScan):
+        '''SixWellBioCellJustCornersScan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
                        clip_duration=3, video_format_params=None)
 
         Modified version of 6_well_scan that includes only the four corners of
@@ -382,11 +382,11 @@ class six_well_biocell_just_corners_scan(six_well_biocell_scan):
 
                 self.calibrated_for_z = False
 
-                scan_base.__init__(self, scan_id, video_format_params)
+                ScanBase.__init__(self, scan_id, video_format_params)
 
                 well_origins = self.generate_well_origins( top_left_origin )
 
-                scan_base.build_scan_from_target_origins(self,
+                ScanBase.build_scan_from_target_origins(self,
                                                          well_origins,
                                                          target_width = 19.1,
                                                          target_height = 26.8,
@@ -424,8 +424,8 @@ def xtz2xyz(xtz, arm_length = 55.0):
 
 
 
-class scancam_base():
-        '''scancam_base(stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100)
+class ScanCamBase():
+        '''ScanCamBase(stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100)
 
         Base class for scacncams.
 
@@ -433,7 +433,7 @@ class scancam_base():
                         The keys are the axis identifiers. (e.g. 'X', 'theta',
                         'z')
 
-        camera:         Camera class derived from camera_base
+        camera:         Camera class derived from CameraBase
         
         scancam_id:     Identifier string for class
 
@@ -465,7 +465,7 @@ class scancam_base():
 
 
         def wait_for_stages_to_complete_actions(self):
-                '''scancam_base.wait_for_stages_to_complete_actions()
+                '''ScanCamBase.wait_for_stages_to_complete_actions()
 
                 For each scancam stage, wait until .in_action() returns False, and timeout
                 if it takes too long.
@@ -485,7 +485,7 @@ class scancam_base():
 
 
         def build_timestring(self, t):
-                '''scancam_base.build_timestring(time)
+                '''ScanCamBase.build_timestring(time)
 
                 Build timestring in the format:
                         YYYY-MM-DD_HH-MM-SS
@@ -496,7 +496,7 @@ class scancam_base():
 
                 
         def stop(self):
-                '''scancam_base.stop()
+                '''ScanCamBase.stop()
 
                 Send stop command to all stages.
                 '''
@@ -505,7 +505,7 @@ class scancam_base():
 
 
         def home(self):
-                '''scancam_base.home()
+                '''ScanCamBase.home()
 
                 Send home command to all stages and wait to complete
                 '''
@@ -521,7 +521,7 @@ class scancam_base():
 
 
         def move_stages(self, stage_targets, wait_for_completion = True):
-                '''scancam_base.move_stages(stage_targets, wait_for_move_to_complete = True)
+                '''ScanCamBase.move_stages(stage_targets, wait_for_move_to_complete = True)
 
                 Move as many stages as are specified in the scanpoint and wait
                 until they complete the moves or timeout.
@@ -553,7 +553,7 @@ class scancam_base():
 
 
         def in_action(self):
-                '''scancam_base.in_action()
+                '''ScanCamBase.in_action()
 
                 Return true if one or more devices is in action.
                 '''
@@ -642,8 +642,8 @@ class scancam_base():
                                 log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
                                 raise
 
-class xthetaz_scancam(scancam_base):
-        '''xthetaz_scancam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100)
+class XThetaZScanCam(ScanCamBase):
+        '''XThetaZScanCam(self, stages, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100)
 
         Scancam with 200mm x-axis, rotary stage, and 10mm z-axis. The z-axis and
         camera are mounted to the rotary axis and can swing around to where the
@@ -680,13 +680,13 @@ class xthetaz_scancam(scancam_base):
                 xtz_stages['theta'] = stages[1]
                 #xtz_stages['z'] = stages[2]
 
-                scancam_base.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, stage_timeout = stage_timeout)
+                ScanCamBase.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, stage_timeout = stage_timeout)
 
                 self.used_negative_of_angle_last_time = False                
 
 
         def xy2xtheta(self, xy_point):
-                '''xthetaz_scancam.xy2xtheta(xy_point)
+                '''XThetaZScanCam.xy2xtheta(xy_point)
 
                 Use physical geometry of the scancam to translate from a
                 cartesian xy coord point (in mm) to the one implemented by our
@@ -759,7 +759,7 @@ class xthetaz_scancam(scancam_base):
 
 
         def move(self, settings, wait_for_completion = True):
-                '''xthetaz_scancam.move(settings)
+                '''XThetaZScanCam.move(settings)
 
                 Move as many of the scancam stages as are specified in settings
                 and wait until they complete or timeout.
@@ -843,9 +843,9 @@ if __name__ == '__main__':
                 # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
                 #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
 
-                camera = ueye_camera( cam_id = 1, log_level = log.getEffectiveLevel() ) 
+                camera = UeyeCamera( cam_id = 1, log_level = log.getEffectiveLevel() ) 
 
-                scancam = xthetaz_scancam( [ x_stage, theta_stage ], 
+                scancam = XThetaZScanCam( [ x_stage, theta_stage ], 
                                            camera, 
                                            stage_timeout = args.stage_timeout,
                                            camera_warmup = args.camera_warmup )

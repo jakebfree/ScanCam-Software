@@ -22,7 +22,7 @@ corners_from_sw = ( {'x':152.2, 'y':47.3, 'z0':2.0, 'z1':4.0, 't':10},
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-module1 = scancam.six_well_biocell_just_corners_scan( {'x':152.2, 'y':29.2 },
+module1 = scancam.SixWellBioCellJustCornersScan( {'x':152.2, 'y':29.2 },
                           scan_id = 'module1',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
@@ -30,7 +30,7 @@ module1 = scancam.six_well_biocell_just_corners_scan( {'x':152.2, 'y':29.2 },
                                            'cropping': (320, 2240, 0, 1920) },
                           verbose = True )
 
-module2 = scancam.six_well_biocell_just_corners_scan( {'x':28.1, 'y':29.2 },
+module2 = scancam.SixWellBioCellJustCornersScan( {'x':28.1, 'y':29.2 },
                           scan_id = 'module2',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,

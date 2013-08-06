@@ -65,14 +65,14 @@ try:
     # Start thread for serial commnunication
     thread.start_new_thread( ser.open, ())
 
-    camera = ueye_camera(cam_id = 1, 
+    camera = UeyeCamera(cam_id = 1, 
                          log_level = log.getEffectiveLevel(),
                          num_camera_calls_between_ueye_daemon_restarts = 3  ) 
 
     for i in range(10):
         camera.record_video('tester%d'%i, 1, video_format_params = {'binning': 2} )
 
-    scancam = xthetaz_scancam( [x_stage, theta_stage], camera )
+    scancam = XThetaZScanCam( [x_stage, theta_stage], camera )
 
     if args.home_on_start:
         scancam.home()

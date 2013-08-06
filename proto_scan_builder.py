@@ -4,7 +4,7 @@ import scancam
 
 # Heuristically found culture geometry on prototype
 # generate scan from calculated corner
-proto = scancam.six_well_biocell_scan( {'x':69.0, 'y':29.2 },
+proto = scancam.SixWellBioCellScan( {'x':69.0, 'y':29.2 },
                           scan_id = 'proto',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
@@ -18,7 +18,7 @@ pickle.dump( [proto], scanfile)
 scanfile.close()
 
 
-proto_corners = scancam.six_well_biocell_just_corners_scan( {'x':69.0, 'y':29.2 },
+proto_corners = scancam.SixWellBioCellJustCornersScan( {'x':69.0, 'y':29.2 },
                           scan_id = 'proto2',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
@@ -32,7 +32,7 @@ pickle.dump( [proto_corners], scanfile)
 scanfile.close()
 
 
-proto_centers = scancam.six_well_biocell_scan( {'x':69.0, 'y':29.2 },
+proto_centers = scancam.SixWellBioCellScan( {'x':69.0, 'y':29.2 },
                           scan_id = 'proto2',
                           num_h_scan_points = 1,
                           num_v_scan_points = 1,

@@ -12,8 +12,8 @@ NUM_DAEMON_START_TRIES = 3
 
 skip_compression = False
 
-class camera_base():
-        '''camera_base(   )
+class CameraBase():
+        '''CameraBase(   )
 
         Base camera class that can be parent to specific camera types
         '''
@@ -24,7 +24,7 @@ class camera_base():
         def record_video(filename_base,
                          clip_duration,
                          video_format_params = None):
-                '''camera_base.record_video(filename_base, clip_duration, video_format_params = None)
+                '''CameraBase.record_video(filename_base, clip_duration, video_format_params = None)
 
                 Not very interesting. Intended as prototype for derived classes.
                 '''
@@ -39,8 +39,8 @@ class camera_base():
                 return self.sensor_resolution
 
                          
-class ueye_camera(camera_base):
-        '''ueye_camera(cam_id = None,
+class UeyeCamera(CameraBase):
+        '''UeyeCamera(cam_id = None,
                      cam_serial_num = None,
                      cam_device_id = None,
                      num_camera_calls_between_ueye_daemon_restarts = 50,
@@ -150,7 +150,7 @@ class ueye_camera(camera_base):
 
 
         def daemon_call(self, command):
-                '''ueye_camera.daemon_call( command )
+                '''UeyeCamera.daemon_call( command )
 
                 Sends a command to the ueye daemon manager script.
                 
@@ -204,7 +204,7 @@ class ueye_camera(camera_base):
 
 
         def restart_daemon(self):
-                '''ueye_camera.restart_daemon()
+                '''UeyeCamera.restart_daemon()
 
                 Restart the ueye camera handling daemon.
                 '''
@@ -247,7 +247,7 @@ class ueye_camera(camera_base):
 
 
         def record_video(self, filename_base, clip_duration, video_format_params = None ):
-                '''ueye_camera.record_video(filename_base, clip_duration, video_format_params = None)
+                '''UeyeCamera.record_video(filename_base, clip_duration, video_format_params = None)
 
                 Record a video clip and compress to h264 file.
 
