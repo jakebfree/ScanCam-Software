@@ -48,7 +48,8 @@ def parse_arguments( argv ):
 
         # The values are ready from the configuration file first in the list so that
         # command line arguments may supercede them if given
-        args = parser.parse_args(['@scancam.conf'] + argv[1:])
+        # FIXME: Putting the config file in /etc/ is pretty Linux-centric. Should find better cross-platform way to handle this
+        args = parser.parse_args(['@/etc/scancam.conf'] + argv[1:])
 
         # Set up logging
         if args.log_level == 'DEBUG':
