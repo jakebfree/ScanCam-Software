@@ -565,7 +565,7 @@ class ScanCamBase():
 
                         # Record Video                        
                         try:
-                                camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
+                                self.camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
                         except KeyboardInterrupt:
                                 raise        
                         except:
