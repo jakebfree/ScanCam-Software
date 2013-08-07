@@ -2,14 +2,15 @@
 import pickle
 import thread
 import serial
+import sys
 from time import sleep, time
 
-from scancam import *
-from serial_connection import *
-from linear_slides import *
-from rotary_stages import *
-from scan_building_tools import *
-from bst_camera import *
+from scancam.scancam import *
+from zaber.serial_connection import *
+from zaber.linear_slides import *
+from zaber.rotary_stages import *
+#from scan_building_tools import *
+from bst_camera.bst_camera import *
 
 try:
     import argparse
