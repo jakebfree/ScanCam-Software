@@ -18,7 +18,8 @@ class CameraBase():
         Base camera class that can be parent to specific camera types
         '''
 
-        def __init__():
+        def __init__(self):
+                self.light_state = None
                 pass
 
         def record_video(filename_base,
@@ -38,6 +39,26 @@ class CameraBase():
                 '''
                 return self.sensor_resolution
 
+
+        def set_light(self, state):
+                '''set_lights(state)
+
+                Turn lights on or off. Prototype for derived classes.
+
+                state:  True for on, False for off
+                '''
+
+
+        def get_light_state(self):
+                '''get_light_state()
+
+                Returns True when light is on and False for off.
+                '''
+                if self.light_state == None:
+                        log.warning( "Warning: Light state has not yet been set and is unknown" )
+                        raise Exception
+
+                return self.light_state
                          
 class UeyeCamera(CameraBase):
         '''UeyeCamera(cam_id = None,
@@ -71,6 +92,8 @@ class UeyeCamera(CameraBase):
                      log_level = logging.INFO):
 
                 log.setLevel(log_level)
+
+                CameraBase.__init__(self)
 
                 self.cam_id = cam_id
                 self.cam_serial_number = cam_serial_number
@@ -405,3 +428,43 @@ class UeyeCamera(CameraBase):
                         raise
                 log.debug( "Return val from compression was " + str(ret_val))
 
+
+
+        def set_light(self, state):
+                '''set_lights(state)
+
+                Turn lights on or off.
+
+                state:  True for on, False for off
+                '''
+
+                # Start to build camera command with camera identifier
+                command = ""
+                if self.cam_device_id != None:
+                        command = "idscam conf --device " + str(self. cam_device_id)
+                elif self.cam_id != None:
+                        command = "idscam conf --id " + str(self.cam_id)
+                elif self.cam_serial_number != None:
+                        command = "idscam conf --serial " + str(self.cam_serial_number)
+                else:
+                        log.critical( "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied." )
+                        raise ValueError
+                
+                # Finish command depending on turning on or off
+                if state == True:
+                        command += " --flash-on"
+                        self.light_state = True
+                else:
+                        command += " --flash-off"
+                        self.light_state = False
+
+                # Send command to os
+                rval = os.system( command )
+                if rval == 0:
+                        if state == True:
+                                log.debug("Success turning on light")
+                        else:
+                                log.debug("Success turning off light")
+                        return
+
+                raise Exception
