@@ -45,6 +45,7 @@ def parse_arguments( argv ):
         configs.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
         configs.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
         configs.add_argument('--camera-warmup', type=float, default=0.0, help="Time in seconds (float) between camera system call and beginning of clip. Used to adjust speed of video-through-depth z-axis move") 
+        configs.add_argument('--target-video-dir', default='/data', help="Directory where video clips are saved") 
 
         # The values are ready from the configuration file first in the list so that
         # command line arguments may supercede them if given
@@ -136,7 +137,7 @@ if __name__ == '__main__':
                                            camera, 
                                            stage_timeout = args.stage_timeout,
                                            camera_warmup = args.camera_warmup,
-                                           target_video_dir = '/data' )
+                                           target_video_dir = args.target_video_dir )
 
                 # Open serial connection. This starts the queue handler
                 log.debug("Opening serial connection in thread")
