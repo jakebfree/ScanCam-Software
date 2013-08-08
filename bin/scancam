@@ -173,7 +173,7 @@ if __name__ == '__main__':
   
                         completed_scan_sets += 1
 
-                        if not args.continuous and completed_scans == args.num_scans:
+                        if not args.continuous and completed_scan_sets == args.num_scans:
                                 break
                         
         except KeyboardInterrupt:
