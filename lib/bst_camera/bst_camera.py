@@ -184,7 +184,7 @@ class UeyeCamera(CameraBase):
                         # Returned value signifying that it is aready running(2), or didn't terminate(4)
                         return True
                 else:
-                        log.critical( "Error: ueye daemon control script error. May not be installed? Exiting")
+                        log.critical( "Error: ueye daemon control script error. May not be installed? May not have permission? Exiting")
                         sys.exit(-1)
 
                 response = p.stdout.read()
