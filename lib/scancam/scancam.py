@@ -422,8 +422,7 @@ class ScanCamBase():
                                 stage.wait_for_action_to_complete( self.stage_timeout )
                 except zaber_device.DeviceTimeoutError, stage_id:
                         # If one device times out, stop all of them
-                        for stage in self.stages.values():
-                                #stage.stop()
+                                self.stop()
                                 pass
                         raise
 
