@@ -3,6 +3,8 @@ from time import time, gmtime
 import math
 #import os, subprocess
 from socket import gethostname
+from os import getcwd, chdir
+
 import zaber.zaber_device as zaber_device
 
 import logging, idscam.common.syslogger
@@ -381,7 +383,7 @@ class ScanCamBase():
         '''
 
 
-        def __init__(self, stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100):
+        def __init__(self, stages, camera, scancam_id = None, camera_warmup = 0.0, stage_timeout = 100, target_video_dir = None):
 
                 self.stages = stages
                 self.camera = camera
@@ -390,6 +392,11 @@ class ScanCamBase():
                 self.id = scancam_id
                 self.camera_warmup = camera_warmup
                 self.stage_timeout = stage_timeout
+                if target_video_dir == None:
+                        # Default to current directory if none given
+                        self.target_video_dir = getcwd()
+                else:
+                        self.target_video_dir = target_video_dir
 
         def get_id(self):
                 '''get_id()
@@ -564,6 +571,13 @@ class ScanCamBase():
                         else:
                                 filename_base += str(scan_point_num) + '.' + t_str
 
+                        # Change working directory so that video are placed in correct spot
+                        try:
+                                chdir( self.target_video_dir ) 
+                        except OSError:
+                                log.warning("Invalid video target directory. Exiting.")
+                                sys.exit(-1)
+                                
                         # Record Video                        
                         try:
                                 self.camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
@@ -605,7 +619,8 @@ class XThetaZScanCam(ScanCamBase):
         stage_timeout:  Number of seconds to wait for stage moves before timing out.
         '''
 
-        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0, camera_warmup = 0.0, stage_timeout = 100):
+        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0, 
+                     camera_warmup = 0.0, stage_timeout = 100, target_video_dir = None):
 
                 self.arm_length = arm_length
                 self.min_X = min_X
@@ -617,7 +632,8 @@ class XThetaZScanCam(ScanCamBase):
                 xtz_stages['theta'] = stages[1]
                 #xtz_stages['z'] = stages[2]
 
-                ScanCamBase.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, stage_timeout = stage_timeout)
+                ScanCamBase.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, 
+                                     stage_timeout = stage_timeout, target_video_dir = target_video_dir)
 
                 self.used_negative_of_angle_last_time = False                
 

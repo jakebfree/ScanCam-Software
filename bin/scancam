@@ -135,7 +135,8 @@ if __name__ == '__main__':
                 scancam = XThetaZScanCam( [ x_stage, theta_stage ], 
                                            camera, 
                                            stage_timeout = args.stage_timeout,
-                                           camera_warmup = args.camera_warmup )
+                                           camera_warmup = args.camera_warmup,
+                                           target_video_dir = '/data' )
 
                 # Open serial connection. This starts the queue handler
                 log.debug("Opening serial connection in thread")
