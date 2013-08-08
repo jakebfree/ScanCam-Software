@@ -595,13 +595,6 @@ class device_base():
             self.handle_device_packet(source, command, data) 
 
 
-    class DeviceTimeoutError(Exception):
-        def __init__(self, device_id):
-            self.device_id = device_id
-        def __str__(self):
-            return repr(self.device_id)
-
-
 
     def wait_for_action_to_complete(self, timeout_secs):
         '''wait_for_actions_to_complete(devices, timeout_secs)
@@ -623,6 +616,13 @@ class device_base():
             if counter >= timeout_secs:
                     if self.verbose: print self.id, "timeout after %d secs. Raising exception" % counter
                     raise self.DeviceTimeoutError( self.id )
+
+
+class DeviceTimeoutError(Exception):
+    def __init__(self, device_id):
+        self.device_id = device_id
+    def __str__(self):
+        return repr(self.device_id)
 
 
 
