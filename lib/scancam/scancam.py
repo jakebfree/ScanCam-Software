@@ -3,6 +3,7 @@ from time import time, gmtime
 import math
 #import os, subprocess
 from socket import gethostname
+import zaber.zaber_device as zaber_device
 
 import logging, idscam.common.syslogger
 
@@ -552,7 +553,7 @@ class ScanCamBase():
                                 z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
 
                                 move_setting = {'z': point['z1']}
-                                scancam.move( move_setting, wait_for_completion = False )
+                                self.move( move_setting, wait_for_completion = False )
                       
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
@@ -573,7 +574,7 @@ class ScanCamBase():
 
                         # Assure that the last z-axis move was completed
                         try:
-                                scancam.wait_for_stages_to_complete_actions()
+                                self.wait_for_stages_to_complete_actions()
                         except zaber_device.DeviceTimeoutError, device_id:
                                 log.warning("Device %d timed out during second z move on scan point %d" % (device_id, scan_point_num))
                                 raise
