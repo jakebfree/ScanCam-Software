@@ -35,7 +35,7 @@ def parse_arguments( argv ):
         looping_group = parser.add_mutually_exclusive_group()
         looping_group.add_argument('-n', '--num-scans', type=int, default=1, help="Number of scans to perform before exiting. Defaults to 1")
         looping_group.add_argument('-c', '--continuous', action="store_true", help="Take scans continually without exiting")
-        parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
+        parser.add_argument('--skip-home-on-start', action='store_true', default=False, help="Stages automatically home on startup. This skips homing during development testing to avoid long startup waits for home and back")
         parser.add_argument('scanfile', type=argparse.FileType('rb'), help="Scan file name. Should include a pickled list of scans.")
 
         # The configs group of arguments is intended to be read from a configuration file.
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 # TODO: Send command to reset stages to defaults
                 # TODO: Read in the default target speed for z so we can use it for z0 moves
 
-                if args.home_on_start:
+                if not args.skip_home_on_start:
                         scancam.home()
                                                         
                 # Loop and continually scan with a timed periodicity
