@@ -628,7 +628,7 @@ class XThetaZScanCam(ScanCamBase):
                 xtz_stages = {}
                 xtz_stages['X'] = stages[0]
                 xtz_stages['theta'] = stages[1]
-                #xtz_stages['z'] = stages[2]
+                xtz_stages['z'] = stages[2]
 
                 ScanCamBase.__init__(self, xtz_stages, camera, camera_warmup = camera_warmup, 
                                      stage_timeout = stage_timeout, target_video_dir = target_video_dir)
