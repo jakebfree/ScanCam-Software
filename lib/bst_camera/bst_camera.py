@@ -341,11 +341,11 @@ class UeyeCamera(CameraBase):
                 # Start to build camera command with camera identifier
                 command = ""
                 if self.cam_device_id != None:
-                        command = "idscam video --device " + str(self. cam_device_id)
+                        command = "idscam video --device " + str(self. cam_device_id) + " --enable-flash "
                 elif self.cam_id != None:
-                        command = "idscam video --id " + str(self.cam_id)
+                        command = "idscam video --id " + str(self.cam_id) + " --enable-flash "
                 elif self.cam_serial_number != None:
-                        command = "idscam video --serial " + str(self.cam_serial_number)
+                        command = "idscam video --serial " + str(self.cam_serial_number) + " --enable-flash "
                 else:
                         log.critical( "Error: At least one of: cam_id, cam_serial_num, or cam_device_id, must be supplied." )
                         raise ValueError
