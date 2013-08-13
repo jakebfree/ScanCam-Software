@@ -422,8 +422,7 @@ class ScanCamBase():
                                 stage.wait_for_action_to_complete( self.stage_timeout )
                 except zaber_device.DeviceTimeoutError, stage_id:
                         # If one device times out, stop all of them
-                                self.stop()
-                                pass
+                        self.stop()
                         raise
 
 
@@ -618,7 +617,7 @@ class XThetaZScanCam(ScanCamBase):
         stage_timeout:  Number of seconds to wait for stage moves before timing out.
         '''
 
-        def __init__(self, stages, camera, arm_length = 52.5, min_X = 0.0, max_X = 176.0, 
+        def __init__(self, stages, camera = None, arm_length = 52.5, min_X = 0.0, max_X = 176.0, 
                      camera_warmup = 0.0, stage_timeout = 100, target_video_dir = None):
 
                 self.arm_length = arm_length
