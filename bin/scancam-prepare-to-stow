@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+import pickle
+import thread
+import serial
+import sys
+from time import sleep, time
+
+from scancam.scancam import *
+from zaber.serial_connection import *
+from zaber.linear_slides import *
+from zaber.rotary_stages import *
+from bst_camera.bst_camera import *
+
+try:
+    import argparse
+except ImportError, err:
+    syslogger.critical("Failed to import argparse")
+    if version_info < (2, 7):
+        syslogger.critical("your are running an older version of Python. argparse was added in Python 2.7 please add library manually")
+        exit(1)
+    else:
+        raise err
+
+import logging, idscam.common.syslogger
+
+log = idscam.common.syslogger.get_syslogger('scancam')
+
+
+def parse_arguments( argv ):
+        # Parse config file and command line arguments
+        parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
+        parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='INFO', help="Level of logging. Defaults to INFO")
+
+        # The configs group of arguments is intended to be read from a configuration file.
+        # They may be overwritten at the command line (useful during development).
+        # TODO: make config file location configurable
+        configs = parser.add_argument_group('configs', "Arguments generally read from scancam.conf file. May be overridden at command line")
+        configs.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
+        configs.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
+        configs.add_argument('--camera-warmup', type=float, default=0.0, help="Time in seconds (float) between camera system call and beginning of clip. Used to adjust speed of video-through-depth z-axis move") 
+        configs.add_argument('--target-video-dir', default='/data', help="Directory where video clips are saved") 
+
+        # The values are read from the configuration file first in the list so that
+        # command line arguments may supercede them if given
+        # FIXME: Putting the config file in /etc/ is pretty Linux-centric. Should find better cross-platform way to handle this
+        args = parser.parse_args(['@/etc/scancam.conf'] + argv[1:])
+
+        # Set up logging
+        if args.log_level == 'DEBUG':
+                log.setLevel(logging.DEBUG)
+        elif args.log_level == 'INFO':
+                log.setLevel(logging.INFO)
+        elif args.log_level == 'WARNING':
+                log.setLevel(logging.WARNING)
+        elif args.log_level == 'CRITICAL':
+                log.setLevel(logging.CRITICAL)
+        else:
+                print "Logging level not available. Exiting."
+                sys.exit(1)
+
+        log.critical("Logging critical messages.")
+        log.error("Logging error messages")
+        log.warning("Logging warning messages.")
+        log.info("Logging info messages")
+        log.debug("Logging debug messages")
+
+        return args
+
+
+
+if __name__ == '__main__':
+
+
+        # parse arguments
+        # scancam [OPTION]... [SCANFILE]...
+        #
+        # -p, --minimum-period in minutes
+        args = parse_arguments(sys.argv)
+
+        # Log all variables handled by config file and command line args
+        log.info("Variables handled by config file and command line args:")
+        arg_dict = vars(args)
+        for arg in arg_dict:
+                log.info("    " + arg + ": " + str(arg_dict[arg]))
+
+        # Put everything in try statement so that we can finally close the serial port on any error
+        completed_scan_sets = 0
+        try:
+                # Create serial connection
+                try:
+                        ser = serial_connection(args.serial_dev)
+                except serial.SerialException, errmsg:
+                        log.critical("Error constructing serial connection: " + errmsg)
+                        log.critical("If we don't have a serial connection, we're dead in the water. Exiting.")
+                        sys.exit(1)
+                        
+                # TODO Flush serial port and anything else necessary to have clean comm start
+
+                # Derive verbosity for stages from log level
+                if args.log_level == 'DEBUG':
+                        verbose = True
+                else:
+                        verbose = False
+
+                # Instantiate the axes
+                # From T-LSM200A specs: mm_per_rev = .047625 um/microstep * 64 microstep/step * 200 steps/rev * .001 mm/um = .6096 mm/rev
+                x_stage = linear_slide(ser, 1, mm_per_rev = .6096, verbose = verbose, run_mode = STEP)
+
+                # From T-RS60A specs: .000234375 deg/microstep * 64 microsteps/step = .015 deg/step
+                theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = verbose, run_mode = STEP)
+
+                # From LSA10A-T4 specs: mm_per_rev = .3048 mm/rev
+                z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = verbose, run_mode = STEP)
+
+                scancam = XThetaZScanCam( [ x_stage, theta_stage, z_stage ],
+                                           stage_timeout = args.stage_timeout,
+                                           camera_warmup = args.camera_warmup )
+
+                # Open serial connection. This starts the queue handler
+                log.debug("Opening serial connection in thread")
+                thread.start_new_thread( ser.open, ())
+
+                # Home all stages
+                log.info("Homing all stages")
+                scancam.home()
+
+                # Go to stow locations
+                target_locations = {'x': 120, 'y': 0, 'z': 5 }
+                log.info("Sending stages to: " + str(target_locations) )
+                scancam.move( target_locations )
+
+        except KeyboardInterrupt:
+                 log.debug("Completed %d scan sets." % completed_scan_sets)
+
+
+        finally:
+                # Send stop command to all devices
+                try:
+                        scancam
+                        scancam.stop()
+                except NameError:
+                        # If the scancam has not been intitialized, don't stop it
+                        pass
+                
+                # Close serial connection before final exit
+                log.info("Closing serial connection")
+                ser.close()
+                log.info("Connection closed")
+
