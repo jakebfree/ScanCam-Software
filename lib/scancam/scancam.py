@@ -1,7 +1,6 @@
 import sys
 from time import time, gmtime
 import math
-#import os, subprocess
 from socket import gethostname
 from os import getcwd, chdir
 
@@ -108,10 +107,11 @@ class ScanBase():
                 
                 Builds an scan of points across a list of equally sized rectangular targets.
 
-                The scan begins in the bottom-left corner (origin) of the first target and scans across and up it
-                in an ess pattern that goes to the right across a row and left back across the next row.
-                It then jumps to the origin of the next target and scans it. Repeating until
-                all of the targets are complete.
+                The scan begins at the origin (corner of target area with smallest X and Y values) of 
+                the first target and scans across and up it in an ess pattern that goes in a positive X 
+                direction across a row and negative X direction back across the next row. It then jumps 
+                to the origin of the next target and scans it. Repeating until all of the targets are 
+                complete.
 
                 It has no knowledge of the camera's field of view so the user must designate the correct
                 number of horizontal and vertical scan points to achieve the correct step-over distances.
@@ -125,14 +125,14 @@ class ScanBase():
                 cell_width = target_width/float(num_h_scan_points)
                 cell_height = target_height/float(num_v_scan_points)
 
-                # Iterate across rows and down columns to scan each target
+                # Iterate across rows and up columns to scan each target
                 self.scanpoints = []
                 first_z_last_time = ''
                 area_num = 0
                 for origin in origins:
                         area_num += 1
-                        # The center of the first cell isn't the corner, it's half a cell over (and down)
-                        x0 = origin['x'] - cell_width/2.0
+                        # The center of the first cell isn't the corner, it's half a cell over (and up)
+                        x0 = origin['x'] + cell_width/2.0
                         y0 = origin['y'] + cell_height/2.0
                         for jj in range(num_v_scan_points):
                                 for ii in range(num_h_scan_points):
@@ -152,9 +152,9 @@ class ScanBase():
 
                                         # Count even rows up and odd rows down to skip track back to 0
                                         if j%2 == 0:
-                                                scan_point['x'] = x0 - i*cell_width
+                                                scan_point['x'] = x0 + i*cell_width
                                         if j%2 == 1:
-                                                scan_point['x'] = x0 - (num_h_scan_points-1-i)*cell_width
+                                                scan_point['x'] = x0 + (num_h_scan_points-1-i)*cell_width
 
                                         scan_point['y'] = y0 + j*cell_height
 
@@ -197,14 +197,15 @@ class ScanBase():
 
                 
 class SixWellBioCellScan(ScanBase):
-        '''SixWellBioCellScan(origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
+        '''SixWellBioCellScan(starting_origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
                         clip_duration = 10, verbose=False)
 
-        Takes the origin of the top-left well and generates a scan based
-        on the known geometry of the 6-well plate measured from the SolidWorks model
+        Takes the origin of the corner well and generates a scan based on the known 
+        geometry of the 6-well plate as measured from the SolidWorks model. The corner
+        well given must be the one with the minimum X and Y coordinates.
 
-        top_left_origin:        Bottom-left corner of the top-left well in the format
-                                {'x':<>, 'y':<>}
+        starting_origin:        Coordinates of corner of the well with the least X and 
+                                Y coordinate values: {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
 
@@ -226,7 +227,7 @@ class SixWellBioCellScan(ScanBase):
                         
 
         def __init__(self,
-                     top_left_origin,
+                     starting_origin,
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
@@ -238,7 +239,7 @@ class SixWellBioCellScan(ScanBase):
 
                 ScanBase.__init__(self, scan_id, video_format_params)
 
-                well_origins = self.generate_well_origins( top_left_origin )
+                well_origins = self.generate_well_origins( starting_origin )
 
                 ScanBase.build_scan_from_target_origins(self,
                                                          well_origins,
@@ -285,8 +286,8 @@ class SixWellBioCellJustCornersScan(SixWellBioCellScan):
         each well instead of a full scan. It is simplified this way in order to
         verify the lateral location of the wells by visualizing the corners.
 
-        top_left_origin:        Bottom-left corner of the top-left well in the format
-                                {'x':<>, 'y':<>}
+        starting_origin:        Coordinates of corner of the well with the least X and 
+                                Y coordinate values: {'x':<>, 'y':<>}
                                 
         scan_id:                User-defined string identifier of the scan
 
@@ -310,7 +311,7 @@ class SixWellBioCellJustCornersScan(SixWellBioCellScan):
 
 
         def __init__(self,
-                     top_left_origin,
+                     starting_origin,
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
@@ -323,7 +324,7 @@ class SixWellBioCellJustCornersScan(SixWellBioCellScan):
 
                 ScanBase.__init__(self, scan_id, video_format_params)
 
-                well_origins = self.generate_well_origins( top_left_origin )
+                well_origins = self.generate_well_origins( starting_origin )
 
                 ScanBase.build_scan_from_target_origins(self,
                                                          well_origins,
