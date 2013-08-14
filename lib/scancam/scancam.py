@@ -252,8 +252,8 @@ class SixWellBioCellScan(ScanBase):
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
 
-        def generate_well_origins( self, top_left_well_origin ):
-                '''generate_well_origins( top_left_well_origin )
+        def generate_well_origins( self, starting_well_origin ):
+                '''generate_well_origins( starting_well_origin )
 
                 Given the origin of the top-left well of a six well plate, generate a list
                 of all six well origins. The origins are the bottom left corners of the wells.
@@ -264,15 +264,15 @@ class SixWellBioCellScan(ScanBase):
                 self.delta_origins = [  {'y': 0.0, 'x': 0.0},
                                         {'y': 38.3, 'x': 0.0},
                                         {'y': 76.6, 'x': 0.0},
-                                        {'y': 8.7, 'x': 28.1},
-                                        {'y': 47.0, 'x': 28.1},
-                                        {'y': 85.3, 'x': 28.1}    ]
+                                        {'y': -8.7, 'x': 28.1},
+                                        {'y': 29.6, 'x': 28.1},
+                                        {'y': 67.9, 'x': 28.1}    ]
 
                 # Build list of well origins from origin of top-left well and deltas
                 well_origins = []
                 for delta_origin in self.delta_origins:
-                        origin = {'x': (top_left_well_origin['x']-delta_origin['x']), 
-                                  'y': (top_left_well_origin['y']-delta_origin['y']) }
+                        origin = {'x': (starting_well_origin['x']+delta_origin['x']), 
+                                  'y': (starting_well_origin['y']+delta_origin['y']) }
                         well_origins.append( origin )
 
                 return well_origins
