@@ -176,6 +176,11 @@ if __name__ == '__main__':
   
                         completed_scan_sets += 1
 
+                        # Move to stow position. You never know when an astronaut is going to
+                        # want to remove us.
+                        scancam.home()
+                        scancam.goto_stow_position()
+
                         if not args.continuous and completed_scan_sets == args.num_scans:
                                 break
                         
