@@ -168,6 +168,10 @@ if __name__ == '__main__':
                         # Walk through scans
                         log.info("Starting scan set number" + str(completed_scan_sets + 1))
                         for scan in scan_list:
+                                # Home between scans to prophylactically avoid locational drift
+                                scancam.home()
+
+                                ### Perform scan ###
                                 scancam.scan_action(scan)
   
                         completed_scan_sets += 1
@@ -175,6 +179,8 @@ if __name__ == '__main__':
                         if not args.continuous and completed_scan_sets == args.num_scans:
                                 break
                         
+                
+
         except KeyboardInterrupt:
                  log.debug("Completed %d scan sets." % completed_scan_sets)
 
