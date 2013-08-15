@@ -55,22 +55,26 @@ scanfile.close()
 # Generate JUST CORNERS scan from SolidWorks-measured corners
 # The intention is that looking just at the corners will see the edges of the
 # wells and can help with misalignment adjustments.
-module1 = scancam.SixWellBioCellJustCornersScan( 
+module1 = scancam.SixWellBioCellScan( 
                           {'x':124.1, 'y':-47.3 },
+                          rotation_orientation_id = '1',
                           scan_id = 'module1',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
+                          just_corners = True,
                           verbose = True )
 
-module2 = scancam.SixWellBioCellJustCornersScan( 
+module2 = scancam.SixWellBioCellScan( 
                           {'x':0.0, 'y':-47.3 },
+                          rotation_orientation_id = '2',
                           scan_id = 'module2',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
+                          just_corners = True,
                           verbose = True )
 
 # Pickle scan into file

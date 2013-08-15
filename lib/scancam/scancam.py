@@ -178,8 +178,8 @@ class ScanBase():
                                                 scan_point['t'] = origin['t']
 
                                         # Add cell identifier
-                                        if scan_point.has_key('area-id'):
-                                                area_id = scan_point['area-id']
+                                        if origin.has_key('area-id'):
+                                                area_id = origin['area-id']
                                         else:
                                                 area_id = str(area_num)
                                         scan_point['point-id'] = "%s-%d-%d" % ( area_id, j+1, i+1)
@@ -203,7 +203,7 @@ class ScanBase():
 class SixWellBioCellScan(ScanBase):
         '''SixWellBioCellScan(starting_origin, rotations_orientation_id, scan_id=None, 
                         num_h_scan_points=1, num_v_scan_points=1, clip_duration = 10, 
-                        verbose=False)
+                        just_corners=False, verbose=False)
 
         Takes the origin of the corner well and generates a scan based on the known 
         geometry of the 6-well plate as measured from the SolidWorks model. The corner
@@ -228,6 +228,11 @@ class SixWellBioCellScan(ScanBase):
         video_format_params:    Dictionary of video params to be passed to camera when
                                 recording video clips
 
+        just_corners:           Boolean that when true creates a scan consisting only of the four
+                                corner scan points of each area that would be created given the other
+                                args. It may be useful for verifying the x-y calibration of the scan
+                                since the edges of the wells are likely to be visible in the camera FOV
+
         verbose:                Verbose
 
         Assumes that the orientation of the plate is such that it is vertical
@@ -244,6 +249,7 @@ class SixWellBioCellScan(ScanBase):
                      num_v_scan_points = 1,
                      clip_duration = 3,
                      video_format_params = None,
+                     just_corners = False,
                      verbose = False):
 
                 self.calibrated_for_z = False
@@ -258,6 +264,7 @@ class SixWellBioCellScan(ScanBase):
                                                          target_height = 26.8,
                                                          num_h_scan_points = num_h_scan_points,
                                                          num_v_scan_points = num_v_scan_points,
+                                                         just_corners = just_corners,
                                                          verbose = verbose )
 
                 for scanpoint in self.scanpoints:
@@ -304,66 +311,6 @@ class SixWellBioCellScan(ScanBase):
 
                 return well_origins
 
-
-class SixWellBioCellJustCornersScan(SixWellBioCellScan):
-        '''SixWellBioCellJustCornersScan(top_left_corner, scan_id=None, num_h_scan_points=1, num_v_scan_points=1, verbose=False,
-                       clip_duration=3, video_format_params=None)
-
-        Modified version of 6_well_scan that includes only the four corners of
-        each well instead of a full scan. It is simplified this way in order to
-        verify the lateral location of the wells by visualizing the corners.
-
-        starting_origin:        Coordinates of corner of the well with the least X and 
-                                Y coordinate values: {'x':<>, 'y':<>}
-                                
-        scan_id:                User-defined string identifier of the scan
-
-        num_h_scan_points:      Number of scan points across each well (if we
-                                were doing a full scan)
-
-        num_v_scan_points:      Number of scan points down each well (if we were
-                                doing a full scan)
-        
-        clip_duration:          Duration in seconds to record video for each scan point
-
-        video_format_params:    Dictionary of video params to be passed to camera when
-                                recording video clips
-
-        verbose:                Verbosity
-
-        Assumes that the orientation of the plate is such that it is vertical
-        (long axis of plate and wells is in y-direction) and the top-left well is
-        higher than the top-right well.
-        '''
-
-
-        def __init__(self,
-                     starting_origin,
-                     scan_id = None,
-                     num_h_scan_points = 1,
-                     num_v_scan_points = 1,
-                     clip_duration = 3,
-                     video_format_params = None,
-                     verbose = False):
-
-
-                self.calibrated_for_z = False
-
-                ScanBase.__init__(self, scan_id, video_format_params)
-
-                well_origins = self.generate_well_origins( starting_origin )
-
-                ScanBase.build_scan_from_target_origins(self,
-                                                         well_origins,
-                                                         target_width = 19.1,
-                                                         target_height = 26.8,
-                                                         num_h_scan_points = num_h_scan_points,
-                                                         num_v_scan_points = num_v_scan_points,
-                                                         just_corners = True,
-                                                         verbose = verbose )
-
-                for scanpoint in self.scanpoints:
-                        scanpoint['t'] = clip_duration
 
 
 def xtz2xyz(xtz, arm_length = 55.0):
