@@ -178,7 +178,11 @@ class ScanBase():
                                                 scan_point['t'] = origin['t']
 
                                         # Add cell identifier
-                                        scan_point['point-id'] = "%d-%d-%d" % ( area_num, j+1, i+1)
+                                        if scan_point.has_key('area-id'):
+                                                area_id = scan_point['area-id']
+                                        else:
+                                                area_id = str(area_num)
+                                        scan_point['point-id'] = "%s-%d-%d" % ( area_id, j+1, i+1)
 
                                         # Assign target areas id to point. This may be useful later when
                                         # calibrating in cases where a given calibration is to be applied
@@ -197,8 +201,9 @@ class ScanBase():
 
                 
 class SixWellBioCellScan(ScanBase):
-        '''SixWellBioCellScan(starting_origin, scan_id=None, num_h_scan_points=1, num_v_scan_points=1,
-                        clip_duration = 10, verbose=False)
+        '''SixWellBioCellScan(starting_origin, rotations_orientation_id, scan_id=None, 
+                        num_h_scan_points=1, num_v_scan_points=1, clip_duration = 10, 
+                        verbose=False)
 
         Takes the origin of the corner well and generates a scan based on the known 
         geometry of the 6-well plate as measured from the SolidWorks model. The corner
@@ -207,6 +212,11 @@ class SixWellBioCellScan(ScanBase):
         starting_origin:        Coordinates of corner of the well with the least X and 
                                 Y coordinate values: {'x':<>, 'y':<>}
                                 
+        rotation_orientation_id:  String identifier that denotes which way the plate
+                                is oriented. Only two orientations are supported. Both 
+                                have the long axis of the plate in the Y direction. The 
+                                A1 cell may be in the bottom-left or top-right position
+
         scan_id:                User-defined string identifier of the scan
 
         num_h_scan_points:      Number of scan points across each well
@@ -228,6 +238,7 @@ class SixWellBioCellScan(ScanBase):
 
         def __init__(self,
                      starting_origin,
+                     rotation_orientation_id,
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
@@ -239,7 +250,7 @@ class SixWellBioCellScan(ScanBase):
 
                 ScanBase.__init__(self, scan_id, video_format_params)
 
-                well_origins = self.generate_well_origins( starting_origin )
+                well_origins = self.generate_well_origins( starting_origin, rotation_orientation_id )
 
                 ScanBase.build_scan_from_target_origins(self,
                                                          well_origins,
@@ -252,27 +263,43 @@ class SixWellBioCellScan(ScanBase):
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
 
-        def generate_well_origins( self, starting_well_origin ):
+        def generate_well_origins( self, starting_well_origin, rotation_orientation_id ):
                 '''generate_well_origins( starting_well_origin )
 
                 Given the origin of the top-left well of a six well plate, generate a list
                 of all six well origins. The origins are the bottom left corners of the wells.
+                Each well is given an area-id based on the rotation_orientation_id.
 
                 top_left_well_origin:   (x,y) coordinates of the origin of the top-left well
+
+                rotation_orientation_id:  String identifier that denotes which way the plate
+                                        is oriented. Only two orientations are supported. Both 
+                                        have the long axis of the plate in the Y direction. The 
+                                        A1 cell may be in the bottom-left or top-right position
                 '''
-                # These were calculated from a list of twelve well corners measured from the SolidWorks model
-                self.delta_origins = [  {'y': 0.0, 'x': 0.0},
-                                        {'y': 38.3, 'x': 0.0},
-                                        {'y': 76.6, 'x': 0.0},
-                                        {'y': -8.7, 'x': 28.1},
-                                        {'y': 29.6, 'x': 28.1},
-                                        {'y': 67.9, 'x': 28.1}    ]
+                # These were calculated from a list of well corners measured from the SolidWorks model
+                # The area_ids are designated based on the 6-well biocell assembly procedure OPM-A426-AP-B.pdf
+                self.delta_origins = {}
+                self.delta_origins['1'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'A3'},
+                                                {'y': 38.3, 'x': 0.0, 'area-id': 'A2'},
+                                                {'y': 76.6, 'x': 0.0, 'area-id': 'A1'},
+                                                {'y': -8.7, 'x': 28.1, 'area-id': 'B3'},
+                                                {'y': 29.6, 'x': 28.1, 'area-id': 'B2'},
+                                                {'y': 67.9, 'x': 28.1, 'area-id': 'B1'}    ]
+                self.delta_origins['2'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'B1'},
+                                                {'y': 38.3, 'x': 0.0, 'area-id': 'B2'},
+                                                {'y': 76.6, 'x': 0.0, 'area-id': 'B3'},
+                                                {'y': -8.7, 'x': 28.1, 'area-id': 'A1'},
+                                                {'y': 29.6, 'x': 28.1, 'area-id': 'A2'},
+                                                {'y': 67.9, 'x': 28.1, 'area-id': 'A3'}    ]
 
                 # Build list of well origins from origin of top-left well and deltas
                 well_origins = []
-                for delta_origin in self.delta_origins:
+                for delta_origin in self.delta_origins[rotation_orientation_id]:
                         origin = {'x': (starting_well_origin['x']+delta_origin['x']), 
-                                  'y': (starting_well_origin['y']+delta_origin['y']) }
+                                  'y': (starting_well_origin['y']+delta_origin['y']),
+                                  'area-id': delta_origin['area-id'] 
+                                 }
                         well_origins.append( origin )
 
                 return well_origins
