@@ -125,9 +125,7 @@ if __name__ == '__main__':
                 scancam.home()
 
                 # Go to stow locations
-                target_locations = {'x': 120, 'y': 0, 'z': 5 }
-                log.info("Sending stages to: " + str(target_locations) )
-                scancam.move( target_locations )
+                scancam.goto_stow_position()
 
         except KeyboardInterrupt:
                  log.debug("Completed %d scan sets." % completed_scan_sets)

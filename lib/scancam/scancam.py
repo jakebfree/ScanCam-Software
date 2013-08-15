@@ -399,6 +399,7 @@ class ScanCamBase():
                         self.target_video_dir = getcwd()
                 else:
                         self.target_video_dir = target_video_dir
+                self.stow_location = None
 
         def get_id(self):
                 '''get_id()
@@ -733,3 +734,11 @@ class XThetaZScanCam(ScanCamBase):
                 log.debug("Moving " + str(my_id) + " to " + str(xtz_setting))
                 self.move_stages( xtz_setting, wait_for_completion = wait_for_completion )
 
+        def goto_stow_position(self):
+                '''XThetaZScancam.gotostow_position()
+
+                Move stages to preset stow locations.
+                '''
+                target_locations = {'x': 120, 'y': 0, 'z': 5 }
+                log.info("Sending stages to stow locations: " + str(target_locations) )
+                self.move( target_locations )

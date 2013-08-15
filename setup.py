@@ -7,8 +7,9 @@ setup(name='scancam',
       author_email='jacob.freeman@colorado.edu',
       package_dir={'': 'lib'},
       packages = ['scancam', 'bst_camera', 'zaber'],
-      scripts = ['bin/scancam', 'bin/flight_scan_builder', \
-             'bin/proto_scan_builder', 'bin/scancam_tester',],
+      scripts = ['bin/scancam', 'bin/micro5-scan-builder', \
+             'bin/proto-scan-builder', 'bin/scancam-tester',\
+             'bin/scancam-prepare-to-stow', ],
       data_files=[('/etc', ['etc/scancam.conf'])],
 )
      
