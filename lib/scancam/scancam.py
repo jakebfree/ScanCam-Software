@@ -174,9 +174,6 @@ class ScanBase():
                                                 if scan_point.has_key('z0'):
                                                         scan_point['z0'] = origin['z0']
                                                         
-                                        if origin.has_key('t'):
-                                                scan_point['t'] = origin['t']
-
                                         # Add cell identifier
                                         if origin.has_key('area-id'):
                                                 area_id = origin['area-id']
@@ -192,6 +189,12 @@ class ScanBase():
                                         else:
                                                 scan_point['area-id'] = area_num
                                                 
+                                        # Propagate any items that we haven't explicitly handled through
+                                        # from the origin to this point. Likely to include t 
+                                        for key in origin:
+                                                if not scan_point.has_key(key):
+                                                        scan_point[key] = origin[key]
+
                                         # We're done with that point, add it to the new scan
                                         self.scanpoints.append( scan_point )
                                         if verbose: print "Appended " + str(scan_point)
@@ -277,7 +280,7 @@ class SixWellBioCellScan(ScanBase):
                 of all six well origins. The origins are the bottom left corners of the wells.
                 Each well is given an area-id based on the rotation_orientation_id.
 
-                top_left_well_origin:   (x,y) coordinates of the origin of the top-left well
+                starting_well_origin:   (x,y) coordinates of the origin of the top-left well
 
                 rotation_orientation_id:  String identifier that denotes which way the plate
                                         is oriented. Only two orientations are supported. Both 
@@ -307,6 +310,12 @@ class SixWellBioCellScan(ScanBase):
                                   'y': (starting_well_origin['y']+delta_origin['y']),
                                   'area-id': delta_origin['area-id'] 
                                  }
+                        # Copy any other dictionary pairs in the starting_well_origin that we
+                        # aren't explicitly handling. This is likely to include t and z values.
+                        for key in starting_well_origin:
+                                if not origin.has_key(key):
+                                        origin[key] = starting_well_origin[key]
+
                         well_origins.append( origin )
 
                 return well_origins
