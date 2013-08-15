@@ -13,6 +13,7 @@ log = idscam.common.syslogger.get_syslogger('scancam')
 
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
+STANDARD_Z_SPEED = 2.0                  # mm/second
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 verbose_for_scan_build = False
 
@@ -81,9 +82,10 @@ class ScanBase():
 
         def build_scan_from_target_origins(self, origins, target_width = 19.1, target_height = 26.8,
                                            num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
-                                           verbose = False):
+                                           always_start_z0 = False, verbose = False):
                 '''ScanBase.build_xyz_scan_from_target_origins( origins, target_width = 19.1, target_height = 26.8,
-                                num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, verbose = False)
+                                num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, 
+                                alwasys_start_z0 = False, verbose = False)
 
                 origins:        List of dictionaries each of which represents the bottom-left corner of the target
                                 area. In the format:
@@ -102,6 +104,10 @@ class ScanBase():
                                 args. It may be useful for verifying the x-y calibration of the scan
                                 since the edges of the wells are likely to be visible in the camera FOV
 
+                always_start_z0:  Option that disables alternating the starting z value between z0 and
+                                z1. This may be desired when you want a correlation between the z value
+                                and the elapsed time in the video clip such as during depth calibration.
+
                 verbose:        Verbosity
                 
                 
@@ -117,7 +123,8 @@ class ScanBase():
                 number of horizontal and vertical scan points to achieve the correct step-over distances.
 
                 The scan points alternate between starting with the given z0 and z1 in order to avoid
-                the extra z-axis move back to z0 for each point.
+                the extra z-axis move back to z0 for each point. This behavior may be disabled by
+                setting always_start_z0 to True.
 
                 t values are constant for each target and assigned to all scan points
                 '''
@@ -157,6 +164,11 @@ class ScanBase():
                                                 scan_point['x'] = x0 + (num_h_scan_points-1-i)*cell_width
 
                                         scan_point['y'] = y0 + j*cell_height
+
+                                        # If the always_start_z0 flag is true, spoof the tracking flag to always 
+                                        # start with the origin point's z0 value
+                                        if always_start_z0 == True:
+                                                first_z_last_time = 'z1'
 
                                         # If there is a second z-axis value, alternate which one you
                                         # start with to avoid waiting for z to get back to z0 every time
@@ -206,7 +218,7 @@ class ScanBase():
 class SixWellBioCellScan(ScanBase):
         '''SixWellBioCellScan(starting_origin, rotations_orientation_id, scan_id=None, 
                         num_h_scan_points=1, num_v_scan_points=1, clip_duration = 10, 
-                        just_corners=False, verbose=False)
+                        just_corners=False, always_start_z0=False, verbose=False)
 
         Takes the origin of the corner well and generates a scan based on the known 
         geometry of the 6-well plate as measured from the SolidWorks model. The corner
@@ -236,6 +248,10 @@ class SixWellBioCellScan(ScanBase):
                                 args. It may be useful for verifying the x-y calibration of the scan
                                 since the edges of the wells are likely to be visible in the camera FOV
 
+        always_start_z0:        Option that disables alternating the starting z value between z0 and
+                                z1. This may be desired when you want a correlation between the z value
+                                and the elapsed time in the video clip such as during depth calibration.
+
         verbose:                Verbose
 
         Assumes that the orientation of the plate is such that it is vertical
@@ -253,6 +269,7 @@ class SixWellBioCellScan(ScanBase):
                      clip_duration = 3,
                      video_format_params = None,
                      just_corners = False,
+                     always_start_z0 = False,
                      verbose = False):
 
                 self.calibrated_for_z = False
@@ -268,6 +285,7 @@ class SixWellBioCellScan(ScanBase):
                                                          num_h_scan_points = num_h_scan_points,
                                                          num_v_scan_points = num_v_scan_points,
                                                          just_corners = just_corners,
+                                                         always_start_z0 = always_start_z0,
                                                          verbose = verbose )
 
                 for scanpoint in self.scanpoints:
@@ -504,8 +522,7 @@ class ScanCamBase():
                         if point.has_key('z0'):
                                 # Set z-axis speed to standard moderately fast value. It may have been set to a
                                 # different value during an image-through-depth sequence
-                                # TODO: fix this to work more appropriately for class
-                                z_stage.set_target_speed_in_units( STANDARD_Z_SPEED, 'A-series' )
+                                self.stages['z'].set_target_speed_in_units( STANDARD_Z_SPEED, 'T-series' )
 
                                 move_setting['z'] = point['z0']
 
@@ -539,7 +556,7 @@ class ScanCamBase():
                                         target_z_speed = MAX_Z_MOVE_SPEED
                                 # TODO: fix set_target_speed_in_units call to be type agnostic
                                 # TODO: change to be more scancam class appropriate
-                                z_stage.set_target_speed_in_units( target_z_speed, 'A-series' )
+                                self.stages['z'].set_target_speed_in_units( target_z_speed, 'A-series' )
 
                                 move_setting = {'z': point['z1']}
                                 self.move( move_setting, wait_for_completion = False )
