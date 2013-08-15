@@ -41,11 +41,10 @@ module2 = scancam.SixWellBioCellScan( {'x':0.0, 'y':-47.3 },
                                            'cropping': (320, 2240, 0, 1920) },
                           verbose = True )
 
+# Pickle scan into file
 scanfile = open("micro5.scan", 'wb')
-
 #pickle.dump( [module1, module2], scanfile)
 pickle.dump( [module2], scanfile)
-
 scanfile.close()
 
 
@@ -66,9 +65,36 @@ module2 = scancam.SixWellBioCellJustCornersScan( {'x':0.0, 'y':-47.3 },
                                            'cropping': (320, 2240, 0, 1920) },
                           verbose = True )
 
+# Pickle scan into file
 scanfile = open("micro5-just-corners.scan", 'wb')
-
 #pickle.dump( [module1, module2], scanfile)
 pickle.dump( [module2], scanfile)
+scanfile.close()
 
+
+
+# Generate scans that only take four equally spaced points per well
+# The intention is that it could be used to determine the starting and finishing
+# z values out in the center areas where the biocell film may have bulged due to 
+# overfilling.
+module1 = scancam.SixWellBioCellScan( {'x':124.1, 'y':-47.3 },
+                          scan_id = 'module1',
+                          num_h_scan_points = 2,
+                          num_v_scan_points = 2,
+                          video_format_params = { 'subsampling': 2,
+                                           'cropping': (320, 2240, 0, 1920) },
+                          verbose = True )
+
+module2 = scancam.SixWellBioCellScan( {'x':0.0, 'y':-47.3 },
+                          scan_id = 'module2',
+                          num_h_scan_points = 2,
+                          num_v_scan_points = 2,
+                          video_format_params = { 'subsampling': 2,
+                                           'cropping': (320, 2240, 0, 1920) },
+                          verbose = True )
+
+# Pickle scan into file
+scanfile = open("micro5-4-per-well.scan", 'wb')
+#pickle.dump( [module1, module2], scanfile)
+pickle.dump( [module2], scanfile)
 scanfile.close()
