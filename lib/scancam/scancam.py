@@ -287,18 +287,18 @@ class SixWellBioCellScan(ScanBase):
                 # These were calculated from a list of well corners measured from the SolidWorks model
                 # The area_ids are designated based on the 6-well biocell assembly procedure OPM-A426-AP-B.pdf
                 self.delta_origins = {}
-                self.delta_origins['1'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'A3'},
-                                                {'y': 38.3, 'x': 0.0, 'area-id': 'A2'},
-                                                {'y': 76.6, 'x': 0.0, 'area-id': 'A1'},
-                                                {'y': -8.7, 'x': 28.1, 'area-id': 'B3'},
-                                                {'y': 29.6, 'x': 28.1, 'area-id': 'B2'},
-                                                {'y': 67.9, 'x': 28.1, 'area-id': 'B1'}    ]
-                self.delta_origins['2'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'B1'},
+                self.delta_origins['1'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'B1'},
                                                 {'y': 38.3, 'x': 0.0, 'area-id': 'B2'},
                                                 {'y': 76.6, 'x': 0.0, 'area-id': 'B3'},
                                                 {'y': -8.7, 'x': 28.1, 'area-id': 'A1'},
                                                 {'y': 29.6, 'x': 28.1, 'area-id': 'A2'},
                                                 {'y': 67.9, 'x': 28.1, 'area-id': 'A3'}    ]
+                self.delta_origins['2'] = [     {'y': 0.0, 'x': 0.0, 'area-id': 'A3'},
+                                                {'y': 38.3, 'x': 0.0, 'area-id': 'A2'},
+                                                {'y': 76.6, 'x': 0.0, 'area-id': 'A1'},
+                                                {'y': -8.7, 'x': 28.1, 'area-id': 'B3'},
+                                                {'y': 29.6, 'x': 28.1, 'area-id': 'B2'},
+                                                {'y': 67.9, 'x': 28.1, 'area-id': 'B1'}    ]
 
                 # Build list of well origins from origin of top-left well and deltas
                 well_origins = []
