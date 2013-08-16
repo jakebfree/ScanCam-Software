@@ -58,7 +58,7 @@ scanfile.close()
 module1 = scancam.SixWellBioCellScan( 
                           {'x':124.1, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
                           rotation_orientation_id = '1',
-                          scan_id = 'module1',
+                          scan_id = 'module1-just-corners',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
                           video_format_params = { 'subsampling': 3,
@@ -70,7 +70,7 @@ module1 = scancam.SixWellBioCellScan(
 module2 = scancam.SixWellBioCellScan( 
                           {'x':0.0, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
                           rotation_orientation_id = '2',
-                          scan_id = 'module2',
+                          scan_id = 'module2-just-corners',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
                           video_format_params = { 'subsampling': 3,
@@ -94,7 +94,7 @@ scanfile.close()
 module1 = scancam.SixWellBioCellScan( 
                           {'x':124.1, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
                           rotation_orientation_id = '1',
-                          scan_id = 'module1',
+                          scan_id = 'module1-4-per-well',
                           num_h_scan_points = 2,
                           num_v_scan_points = 2,
                           video_format_params = { 'subsampling': 2,
@@ -105,7 +105,7 @@ module1 = scancam.SixWellBioCellScan(
 module2 = scancam.SixWellBioCellScan( 
                           {'x':0.0, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0},
                           rotation_orientation_id = '2',
-                          scan_id = 'module2',
+                          scan_id = 'module2-4-per-well',
                           num_h_scan_points = 2,
                           num_v_scan_points = 2,
                           video_format_params = { 'subsampling': 2,
