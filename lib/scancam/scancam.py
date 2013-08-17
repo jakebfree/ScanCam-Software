@@ -13,7 +13,7 @@ log = idscam.common.syslogger.get_syslogger('scancam')
 
 MAX_CLIP_LENGTH = 60                    # seconds
 MAX_Z_MOVE_SPEED = 3.0                  # mm/second
-STANDARD_Z_SPEED = 2.0                  # mm/second
+STANDARD_Z_SPEED = 1.0                  # mm/second
 video_location = "/home/freemajb/data/scancam_proto_videos/"
 verbose_for_scan_build = False
 
