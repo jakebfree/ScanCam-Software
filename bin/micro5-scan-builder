@@ -26,21 +26,23 @@ module1_corners_from_sw = (
 
 # Generate scan from SolidWorks-measured corners
 module1 = scancam.SixWellBioCellScan( 
-                          {'x':124.1, 'y':-47.3, 't':20, 'z0':3.0 },
+                          {'x':124.1, 'y':-47.3, 'z0':3.0 },
                           rotation_orientation_id = '1',
                           scan_id = 'module1',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
+                          clip_duration = 20.0,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
                           verbose = True )
 
 module2 = scancam.SixWellBioCellScan( 
-                          {'x':0.0, 'y':-47.3, 't':20, 'z0':3.0},
+                          {'x':0.0, 'y':-47.3, 'z0':3.0},
                           rotation_orientation_id = '2',
                           scan_id = 'module2',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
+                          clip_duration = 20.0,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
                           verbose = True )
@@ -56,11 +58,12 @@ scanfile.close()
 # The intention is that looking just at the corners will see the edges of the
 # wells and can help with misalignment adjustments.
 module1 = scancam.SixWellBioCellScan( 
-                          {'x':124.1, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
+                          {'x':124.1, 'y':-47.3, 'z0':4.0},
                           rotation_orientation_id = '1',
                           scan_id = 'module1-just-corners',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
+                          clip_duration = 3.0,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
                           just_corners = True,
@@ -68,11 +71,12 @@ module1 = scancam.SixWellBioCellScan(
                           verbose = True )
 
 module2 = scancam.SixWellBioCellScan( 
-                          {'x':0.0, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
+                          {'x':0.0, 'y':-47.3, 'z0':4.0},
                           rotation_orientation_id = '2',
                           scan_id = 'module2-just-corners',
                           num_h_scan_points = 3,
                           num_v_scan_points = 4,
+                          clip_duration = 3.0,
                           video_format_params = { 'subsampling': 3,
                                            'cropping': (320, 2240, 0, 1920) },
                           just_corners = True,
@@ -92,29 +96,31 @@ scanfile.close()
 # z values out in the center areas where the biocell film may have bulged due to 
 # overfilling.
 module1 = scancam.SixWellBioCellScan( 
-                          {'x':124.1, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0 },
+                          {'x':124.1, 'y':-47.3, 'z0':1.0, 'z1':7.0 },
                           rotation_orientation_id = '1',
-                          scan_id = 'module1-4-per-well',
-                          num_h_scan_points = 2,
+                          scan_id = 'module1-2-per-well',
+                          num_h_scan_points = 1,
                           num_v_scan_points = 2,
+                          clip_duration = 60.0,
                           video_format_params = { 'subsampling': 2,
                                            'cropping': (320, 2240, 0, 1920) },
                           always_start_z0 = True,
                           verbose = True )
 
 module2 = scancam.SixWellBioCellScan( 
-                          {'x':0.0, 'y':-47.3, 'z0':0.0, 'z1':5.0, 't':5.0},
+                          {'x':0.0, 'y':-47.3, 'z0':1.0, 'z1':7.0},
                           rotation_orientation_id = '2',
-                          scan_id = 'module2-4-per-well',
-                          num_h_scan_points = 2,
+                          scan_id = 'module2-2-per-well',
+                          num_h_scan_points = 1,
                           num_v_scan_points = 2,
+                          clip_duration = 60.0,
                           video_format_params = { 'subsampling': 2,
                                            'cropping': (320, 2240, 0, 1920) },
                           always_start_z0 = True,
                           verbose = True )
 
 # Pickle scan into file
-scanfile = open("micro5-4-per-well.scan", 'wb')
+scanfile = open("micro5-2-per-well.scan", 'wb')
 #pickle.dump( [module1, module2], scanfile)
 pickle.dump( [module2], scanfile)
 scanfile.close()
