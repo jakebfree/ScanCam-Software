@@ -169,7 +169,8 @@ if __name__ == '__main__':
                         log.info("Starting scan set number" + str(completed_scan_sets + 1))
                         for scan in scan_list:
                                 # Home between scans to prophylactically avoid locational drift
-                                scancam.home()
+                                if not args.skip_home_on_start:
+                                        scancam.home()
 
                                 ### Perform scan ###
                                 scancam.scan_action(scan)
