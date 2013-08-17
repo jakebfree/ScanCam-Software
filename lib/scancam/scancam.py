@@ -81,10 +81,10 @@ class ScanBase():
                         logger.log(log_level, "    " + str(point))
 
         def build_scan_from_target_origins(self, origins, target_width = 19.1, target_height = 26.8,
-                                           num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False,
+                                           num_h_scan_points = 1, num_v_scan_points = 1, just_corners = False,
                                            always_start_z0 = False, verbose = False):
                 '''ScanBase.build_xyz_scan_from_target_origins( origins, target_width = 19.1, target_height = 26.8,
-                                num_h_scan_points = 4, num_v_scan_points = 5, just_corners = False, 
+                                num_h_scan_points = 1, num_v_scan_points = 1, just_corners = False, 
                                 alwasys_start_z0 = False, verbose = False)
 
                 origins:        List of dictionaries each of which represents the bottom-left corner of the target
@@ -266,7 +266,7 @@ class SixWellBioCellScan(ScanBase):
                      scan_id = None,
                      num_h_scan_points = 1,
                      num_v_scan_points = 1,
-                     clip_duration = 3,
+                     clip_duration = None,
                      video_format_params = None,
                      just_corners = False,
                      always_start_z0 = False,
@@ -288,6 +288,10 @@ class SixWellBioCellScan(ScanBase):
                                                          always_start_z0 = always_start_z0,
                                                          verbose = verbose )
 
+                if clip_duration == None:
+                        return
+
+                # Add the video clip duration for each point
                 for scanpoint in self.scanpoints:
                         scanpoint['t'] = clip_duration
 
@@ -516,18 +520,48 @@ class ScanCamBase():
                         scan_point_num += 1
                         log.debug("Step " + str(scan_point_num) + " " + str(point))
 
-                        # TODO: set speed x_stage.set_target_speed_in_units( 6.0 )
+                        clip_duration = int(point['t'])
                         
+                        # Start to build the move setting for this scan point
                         move_setting = {'x': point['x'],
                                         'y': point['y']}
+
+                        # Add z target if required
                         if point.has_key('z0'):
+
+                                # If there is a second z-axis value, then we want to record video while moving through the
+                                # depth of the subject (z-axis). 
+                                if point.has_key('z1'):
+                                        # The move from z0 to z1 should take the same amount of time as the video clip duration
+                                        z1_speed = abs(point['z1']-point['z0']) / (float(point['t']))
+
+                                        if z1_speed > MAX_Z_MOVE_SPEED:
+                                                log.error( str(target_z_speed) + " is faster than the maximum speed: %f" % MAX_Z_MOVE_SPEED)
+                                                raise ValueError
+
+                                        # But, the camera may require a warm-up time from system call to the first frame.
+                                        # The camera warm-up time may even be a significant fraction of the clip-duration, and we
+                                        # need to block on the camera call due to the variability in compression time. So we
+                                        # are stuck not able to wait to start the move because we will already be blocking 
+                                        # on the camera
+
+                                        # The hack is to back up and take a running start. We adjust the z0 to be further from z1
+                                        # than specified and time it so that we will be at the desired z0 location when the 
+                                        # video starts.
+                                        if point['z0'] < point['z1']:
+                                                move_setting['z'] = point['z0'] - z1_speed * self.camera_warmup 
+                                        else:   
+                                                move_setting['z'] = point['z0'] + z1_speed * self.camera_warmup 
+
+                                else:
+                                        move_setting['z'] = point['z0']
+
                                 # Set z-axis speed to standard moderately fast value. It may have been set to a
                                 # different value during an image-through-depth sequence
                                 self.stages['z'].set_target_speed_in_units( STANDARD_Z_SPEED, 'T-series' )
 
-                                move_setting['z'] = point['z0']
-
                         # Move to x,y,z
+                        log.debug( "Moving to " + str(move_setting) )
                         self.move( move_setting )
                         
 
@@ -538,29 +572,12 @@ class ScanCamBase():
                                 log.info("Point has no time value. Skipping z1 and video")
                                 continue
                         
-                        clip_duration = int(point['t'])
-                        
-                        # If there is a second z-axis value, start the move to it as we start the video clip
-                        # The clip will progress through the depth of the move. If t = 0 it is for an image so skip z1
+                        # Start z1 move
                         if point.has_key('z1') and clip_duration != 0:
-                                # The move from z0 to z1 should take the same amount of time as the video clip duration
-                                # But, the camera may require a little warm-up time from system call to the first frame
-                                # We'll add a small buffer of time to the z-axis move so that even if the move and clip
-                                # don't start together, at least they will end together.
-                                target_z_speed = abs(point['z1']-point['z0']) / (float(point['t']) + self.camera_warmup)
-
-                                if target_z_speed > MAX_Z_MOVE_SPEED:
-                                        # Calculate clip duration, rounding up to next int
-                                        clip_duration = ceil(abs(point['z1']-point['z0']) / MAX_Z_MOVE_SPEED - self.camera_warmup)
-                                        log.warning( str(target_z_speed) + " is too fast. Setting to max speed: " + str(MAX_Z_MOVE_SPEED) + \
-                                                              " And extending clip duration to: " + str(clip_duration))
-                                        target_z_speed = MAX_Z_MOVE_SPEED
-                                # TODO: fix set_target_speed_in_units call to be type agnostic
-                                log.debug( "Setting z speed to be: %f" % target_z_speed )
-                                self.stages['z'].set_target_speed_in_units( target_z_speed, 'T-series' )
-
+                                self.stages['z'].set_target_speed_in_units( z1_speed, 'T-series' )
                                 move_setting = {'z': point['z1']}
                                 self.move( move_setting, wait_for_completion = False )
+
                       
                         # Build video file target basename in the format:
                         #       <payload>_<scan definition ID>_<scan point ID>.<YYYY-MM-DD_HH-mm-SS>.h264
