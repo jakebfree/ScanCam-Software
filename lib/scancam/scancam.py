@@ -520,8 +520,6 @@ class ScanCamBase():
                         scan_point_num += 1
                         log.debug("Step " + str(scan_point_num) + " " + str(point))
 
-                        clip_duration = int(point['t'])
-                        
                         # Start to build the move setting for this scan point
                         move_setting = {'x': point['x'],
                                         'y': point['y']}
@@ -573,7 +571,7 @@ class ScanCamBase():
                                 continue
                         
                         # Start z1 move
-                        if point.has_key('z1') and clip_duration != 0:
+                        if point.has_key('z1'):
                                 self.stages['z'].set_target_speed_in_units( z1_speed, 'T-series' )
                                 move_setting = {'z': point['z1']}
                                 self.move( move_setting, wait_for_completion = False )
@@ -597,7 +595,7 @@ class ScanCamBase():
                                 
                         # Record Video                        
                         try:
-                                self.camera.record_video(filename_base, clip_duration, xyz_scan.video_format_params)
+                                self.camera.record_video(filename_base, int(point['t']), xyz_scan.video_format_params)
                         except KeyboardInterrupt:
                                 raise        
                         except:
