@@ -4,10 +4,10 @@ from time import sleep
 import argparse
 import sys
 
-from serial_connection import *
-from linear_slides import *
-from rotary_stages import *
-from scancam import *
+from zaber.serial_connection import *
+from zaber.linear_slides import *
+from zaber.rotary_stages import *
+from scancam.scancam import *
 
 import logging, idscam.common.syslogger
 
@@ -16,7 +16,7 @@ import logging, idscam.common.syslogger
 # Parse command line arguments
 parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 parser.add_argument('-l', '--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL'], default='DEBUG', help="Level of logging")
-parser.add_argument('--home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
+parser.add_argument('--skip-home-on-start', action='store_true', default=True, help="Home all stages on startup. Only set to false during development testing to avoid long waits for home and back")
 parser.add_argument('-s', '--serial-dev', default='/dev/ttyUSB0', help="Serial device identifier. Linux example: '/dev/ttyUSB0', Windows example: 'COM1'")
 parser.add_argument('--stage-timeout', type=int, default=100, help="Number of seconds for stages to try on move before timing out")
 
@@ -61,26 +61,32 @@ try:
     theta_stage = rotary_stage(ser, 2, deg_per_step = .015, verbose = True, run_mode = STEP)
 
     # for z_stage    (LSA10A-T4) 
-    #z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = True, run_mode = STEP)
+    z_stage = linear_slide(ser, 3, mm_per_rev = .3048, verbose = True, run_mode = STEP)
 
     # Start thread for serial commnunication
     thread.start_new_thread( ser.open, ())
 
-    camera = UeyeCamera(cam_id = 1, 
-                         log_level = log.getEffectiveLevel(),
-                         num_camera_calls_between_ueye_daemon_restarts = 3  ) 
+    #camera = UeyeCamera(cam_id = 1, 
+                         #log_level = log.getEffectiveLevel(),
+                         #num_camera_calls_between_ueye_daemon_restarts = 3  ) 
 
-    for i in range(10):
-        camera.record_video('tester%d'%i, 1, video_format_params = {'binning': 2} )
+    #for i in range(10):
+        #camera.record_video('tester%d'%i, 1, video_format_params = {'binning': 2} )
 
-    scancam = XThetaZScanCam( [x_stage, theta_stage], camera )
+    scancam = XThetaZScanCam( [x_stage, theta_stage, z_stage] )
 
-    if args.home_on_start:
+    if not args.skip_home_on_start:
         scancam.home()
                                                         
-    scancam.move({'x':75, 'y':30}, False)
+    scancam.move({'x':75, 'y':30}, wait_for_completion = True )
 
-    scancam.wait_for_stages_to_complete_actions(args.stage_timeout)
+    z_stage.set_target_speed_in_units( 1.0 , 'T-series' )
+
+    for i in range(5):
+        scancam.move({'z':5.0}, wait_for_completion = True )
+        sleep(3)
+        scancam.move({'z':0.0}, wait_for_completion = True )
+        sleep(3)
 
     print "Done with move"
     
