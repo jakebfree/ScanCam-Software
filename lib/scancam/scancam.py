@@ -556,8 +556,8 @@ class ScanCamBase():
                                                               " And extending clip duration to: " + str(clip_duration))
                                         target_z_speed = MAX_Z_MOVE_SPEED
                                 # TODO: fix set_target_speed_in_units call to be type agnostic
-                                # TODO: change to be more scancam class appropriate
-                                self.stages['z'].set_target_speed_in_units( target_z_speed, 'A-series' )
+                                log.debug( "Setting z speed to be: %f" % target_z_speed )
+                                self.stages['z'].set_target_speed_in_units( target_z_speed, 'T-series' )
 
                                 move_setting = {'z': point['z1']}
                                 self.move( move_setting, wait_for_completion = False )
