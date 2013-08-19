@@ -85,8 +85,8 @@ module2 = scancam.SixWellBioCellScan(
 
 # Pickle scan into file
 scanfile = open("micro5-just-corners.scan", 'wb')
-#pickle.dump( [module1, module2], scanfile)
-pickle.dump( [module2], scanfile)
+pickle.dump( [module1, module2], scanfile)
+#pickle.dump( [module2], scanfile)
 scanfile.close()
 
 
