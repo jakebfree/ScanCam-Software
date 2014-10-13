@@ -13,9 +13,9 @@ Motion Control and Frame of Reference
 ---------------------------------------------
 Due to spatial constraints in the original experiment application, the "X-Y" translation from one culture location to the next was implemented using a linear slide and a rotary stage to affect an "X-Theta" configuration. This allows the camera to sweep very close to the floor and ceiling of the experiment enclosure without the system interference created when using comparable linear axes for the "Y" translation.
 
-The frame of reference for the culture imaging locations, however, is specified in standard cartesian X-Y coordinates in order to be more easy to understand in human-accessible terms. It also lends itself well to future implementations (e.g. use in SABL) that will be less space-constrained and can use the more obvious 3-linear axis implementation.
+The frame of reference for the culture imaging locations defined in the scans, however, is specified in standard cartesian X-Y coordinates in order to be more easy to understand in human-accessible terms and to be independent of the scancam implementation. It also lends itself well to future implementations (e.g. fitted to SABL) that will be less space-constrained and can use the more obvious X-Y-Z implementation using three linear axes.
 
-The Zaber devices use stepper motors and integrated controllers. The control computer communicates with the motion devices via RS-232 serial communication that is effectively bussed in hardware by having the first device repeat the communications to daisy-chained devices downstream. hgomersall (also on github) created a python library for communicating with zaber devices. This library was imported into the scancam repo and updated to support rotary stages as well as some other minor helpful features.
+The Zaber motion devices use stepper motors and integrated controllers. The control computer communicates with the motion devices via RS-232 serial communication that is effectively bussed in hardware by having the first device repeat the communications to daisy-chained devices downstream. hgomersall (also on github) created a python library for communicating with zaber devices. This library was imported into the scancam repo and updated to support rotary stages as well as some other minor helpful features.
 
 Imaging
 ----------------------------------------------
